@@ -17,7 +17,7 @@ export function DraftStatus({
   isComplete,
   lastPick,
   title = 'Draft joueur contre IA',
-  description = 'Chaque équipe choisit 5 joueurs à tour de rôle. L’IA prend le meilleur joueur disponible selon sa note.',
+  description = 'Chaque équipe choisit 5 joueurs à tour de rôle. L’IA sélectionne ensuite le meilleur profil disponible.',
 }: DraftStatusProps) {
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur">
@@ -26,15 +26,22 @@ export function DraftStatus({
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Tour actuel</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Tour en cours</p>
           <p className="mt-2 text-lg font-semibold text-white">
-            {isComplete ? 'Draft terminée' : currentTurn === 'user' ? 'À toi de choisir' : 'Tour adverse'}
+            {isComplete
+              ? 'Draft terminée'
+              : currentTurn === 'user'
+                ? 'À toi de choisir'
+                : 'En attente du choix adverse'}
           </p>
         </div>
+
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Dernier choix</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Dernier joueur pris</p>
           <p className="mt-2 text-lg font-semibold text-white">
-            {lastPick ? `${lastPick.player.name} (${lastPick.team === 'user' ? 'toi' : 'adversaire'})` : 'Aucun choix'}
+            {lastPick
+              ? `${lastPick.player.name} · ${lastPick.team === 'user' ? 'toi' : 'adversaire'}`
+              : 'Aucun choix pour le moment'}
           </p>
         </div>
       </div>

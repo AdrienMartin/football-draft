@@ -27,6 +27,7 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<'ALL' | PlayerRole>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedNationality, setSelectedNationality] = useState('ALL');
   const [selectedLeague, setSelectedLeague] = useState('ALL');
   const [sortOption, setSortOption] = useState<SortOption>('rating-desc');
@@ -110,8 +111,13 @@ export function HomePage() {
     selectedLeague === 'ALL'
       ? nationalityFilteredPlayers
       : nationalityFilteredPlayers.filter((player) => player.league === selectedLeague);
+  const searchFilteredPlayers = searchQuery.trim()
+    ? leagueFilteredPlayers.filter((player) =>
+        player.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+      )
+    : leagueFilteredPlayers;
 
-  const sortedPlayers = [...leagueFilteredPlayers].sort((left, right) => {
+  const sortedPlayers = [...searchFilteredPlayers].sort((left, right) => {
     if (sortOption === 'name-asc') {
       return left.name.localeCompare(right.name);
     }
@@ -153,7 +159,14 @@ export function HomePage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedRole, selectedNationality, selectedLeague, sortOption, sortedPlayers.length]);
+  }, [
+    searchQuery,
+    selectedRole,
+    selectedNationality,
+    selectedLeague,
+    sortOption,
+    sortedPlayers.length,
+  ]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -294,8 +307,8 @@ export function HomePage() {
             title={mode === 'multiplayer' ? 'Draft 1v1' : 'Draft joueur contre IA'}
             description={
               mode === 'multiplayer'
-                ? 'Le host et le guest choisissent chacun 5 joueurs à tour de rôle.'
-                : 'Chaque équipe choisit 5 joueurs à tour de rôle. L’IA prend le meilleur joueur disponible selon sa note.'
+                ? 'Chacun choisit 5 joueurs à tour de rôle jusqu’à compléter son équipe.'
+                : 'Choisis 5 joueurs à tour de rôle face à l’IA pour composer ton équipe.'
             }
           />
 
@@ -316,6 +329,8 @@ export function HomePage() {
             availableRoleFilters={availableRoleFilters}
             selectedRole={selectedRole}
             onSelectRole={setSelectedRole}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
             nationalityOptions={nationalityOptions}
             selectedNationality={selectedNationality}
             onSelectNationality={setSelectedNationality}

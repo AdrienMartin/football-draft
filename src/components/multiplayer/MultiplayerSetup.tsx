@@ -41,6 +41,41 @@ async function copyTextWithFallback(text: string) {
   }
 }
 
+function formatRulesSummary(rules: DraftRules) {
+  const parts = [
+    rules.league ?? 'Tous les championnats',
+    rules.nationality ?? 'Toutes nationalités',
+    rules.maxTeamValue ? `${rules.maxTeamValue} MEUR max` : 'Sans budget max',
+  ];
+
+  return parts.join(' · ');
+}
+
+function PlayerStatusCard({
+  label,
+  name,
+  tone,
+}: {
+  label: string;
+  name: string | null;
+  tone: 'emerald' | 'sky';
+}) {
+  const toneClass =
+    tone === 'emerald'
+      ? 'border-emerald-400/20 bg-emerald-400/10'
+      : 'border-sky-400/20 bg-sky-400/10';
+
+  return (
+    <div className={`rounded-2xl border p-4 ${toneClass}`}>
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{label}</p>
+      <p className="mt-2 text-lg font-semibold text-white">{name ?? 'En attente'}</p>
+      <p className="mt-1 text-sm text-slate-300">
+        {name ? 'Connecté' : 'Pas encore rejoint'}
+      </p>
+    </div>
+  );
+}
+
 export function MultiplayerSetup({
   players,
   setup,
@@ -105,11 +140,23 @@ export function MultiplayerSetup({
   if (roomLoaded) {
     return (
       <section className="mx-auto max-w-4xl rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 md:p-10">
-        <h2 className="text-2xl font-semibold text-white sm:text-3xl">Room multijoueur</h2>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-          La room est prête. On attend maintenant que les deux joueurs soient présents pour passer à
-          la draft synchronisée.
-        </p>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-sky-200/80">
+              Duel 1v1
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">
+              Room prête à démarrer
+            </h2>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-300">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Statut</p>
+            <p className="mt-2 font-semibold text-white">
+              {bothPlayersPresent ? 'Deux joueurs connectés' : 'En attente du second joueur'}
+            </p>
+          </div>
+        </div>
 
         {setup.connectionIssue && (
           <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
@@ -125,85 +172,72 @@ export function MultiplayerSetup({
         )}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Room</p>
-            <p className="mt-3 break-all text-lg font-semibold text-white">{setup.room?.id}</p>
-            <p className="mt-2 text-sm text-slate-300">
-              Statut : {bothPlayersPresent ? '2 joueurs connectés' : 'En attente d’un joueur'}
-            </p>
-            <p className="mt-2 text-sm text-slate-400">
-              Règles : {setup.room?.rules.league ?? 'Tous les championnats'} /{' '}
-              {setup.room?.rules.nationality ?? 'Toutes nationalités'} /{' '}
-              {setup.room?.rules.maxTeamValue
-                ? `${setup.room.rules.maxTeamValue} MEUR`
-                : 'Sans budget max'}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Joueurs</p>
-            <p className="mt-3 text-sm text-slate-300">
-              Host :{' '}
-              <span className="font-semibold text-white">{setup.room?.hostName ?? 'En attente'}</span>
-            </p>
-            <p className="mt-2 text-sm text-slate-300">
-              Guest :{' '}
-              <span className="font-semibold text-white">
-                {setup.room?.guestName ?? 'En attente'}
-              </span>
-            </p>
-
-            {isGuestFlow && !setup.room?.guestName && (
-              <div className="mt-4 space-y-3">
-                <input
-                  value={setup.guestName}
-                  onChange={(event) => onChangeGuestName(event.target.value)}
-                  placeholder="Ton nom de joueur"
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => void onJoinRoom()}
-                  disabled={setup.isJoining || setup.guestName.trim().length === 0}
-                  className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-auto"
-                >
-                  {setup.isJoining ? 'Connexion...' : 'Rejoindre la room'}
-                </button>
-              </div>
-            )}
-
-            {setup.inviteLink && waitingForGuest && (
-              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Lien d’invitation
-                </p>
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                  <input
-                    readOnly
-                    value={setup.inviteLink}
-                    className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCopyLink}
-                    className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-                  >
-                    {copyState === 'copied'
-                      ? 'Lien copié'
-                      : copyState === 'failed'
-                        ? 'Copie impossible'
-                        : 'Copier le lien'}
-                  </button>
-                </div>
-                {copyState === 'failed' && (
-                  <p className="mt-2 text-xs text-amber-200">
-                    La copie automatique a échoué. Tu peux copier le lien manuellement.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          <PlayerStatusCard label="Host" name={setup.room?.hostName ?? null} tone="emerald" />
+          <PlayerStatusCard label="Guest" name={setup.room?.guestName ?? null} tone="sky" />
         </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Règles de la draft</p>
+          <p className="mt-3 text-sm leading-6 text-slate-200">
+            {setup.room ? formatRulesSummary(setup.room.rules) : ''}
+          </p>
+        </div>
+
+        {isGuestFlow && !setup.room?.guestName && (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+            <p className="text-sm font-medium text-white">Rejoindre la room</p>
+            <div className="mt-4 space-y-3">
+              <input
+                value={setup.guestName}
+                onChange={(event) => onChangeGuestName(event.target.value)}
+                placeholder="Ton nom de joueur"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => void onJoinRoom()}
+                disabled={setup.isJoining || setup.guestName.trim().length === 0}
+                className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-auto"
+              >
+                {setup.isJoining ? 'Connexion...' : 'Rejoindre la room'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {setup.inviteLink && waitingForGuest && (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-gradient-to-r from-sky-400/10 to-emerald-400/10 p-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">Inviter un joueur</p>
+                <p className="mt-1 text-sm text-slate-300">
+                  Envoie ce lien à ton adversaire pour qu’il rejoigne la room.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+              >
+                {copyState === 'copied'
+                  ? 'Lien copié'
+                  : copyState === 'failed'
+                    ? 'Copie impossible'
+                    : 'Copier le lien'}
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-200">
+              <span className="break-all">{setup.inviteLink}</span>
+            </div>
+
+            {copyState === 'failed' && (
+              <p className="mt-2 text-xs text-amber-200">
+                La copie automatique a échoué. Tu peux copier le lien manuellement.
+              </p>
+            )}
+          </div>
+        )}
 
         {setup.error && (
           <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">

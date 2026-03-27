@@ -14,6 +14,8 @@ type DraftAvailablePlayersProps = {
   availableRoleFilters: Array<'ALL' | PlayerRole>;
   selectedRole: 'ALL' | PlayerRole;
   onSelectRole: (role: 'ALL' | PlayerRole) => void;
+  searchQuery: string;
+  onSearchQueryChange: (value: string) => void;
   nationalityOptions: string[];
   selectedNationality: string;
   onSelectNationality: (value: string) => void;
@@ -40,6 +42,8 @@ export function DraftAvailablePlayers({
   availableRoleFilters,
   selectedRole,
   onSelectRole,
+  searchQuery,
+  onSearchQueryChange,
   nationalityOptions,
   selectedNationality,
   onSelectNationality,
@@ -59,9 +63,6 @@ export function DraftAvailablePlayers({
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-white">Joueurs disponibles</h3>
-          <p className="mt-1 text-sm text-slate-400">
-            Affine la liste puis choisis un joueur valide pour ton équipe.
-          </p>
         </div>
       </div>
 
@@ -86,7 +87,19 @@ export function DraftAvailablePlayers({
         })}
       </div>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="text-sm text-slate-300 sm:col-span-2 lg:col-span-1">
+          <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+            Recherche
+          </span>
+          <input
+            value={searchQuery}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+            placeholder="Nom du joueur"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+          />
+        </label>
+
         <label className="text-sm text-slate-300">
           <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
             Nationalité

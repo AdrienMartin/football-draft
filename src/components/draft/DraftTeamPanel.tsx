@@ -28,7 +28,7 @@ export function DraftTeamPanel({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-white">{title}</h3>
-          <p className="mt-1 text-sm text-slate-400">GEN moyen {averageRating}</p>
+          <p className="mt-1 text-sm text-slate-400">Note moyenne {averageRating}</p>
         </div>
         <div
           className={`rounded-2xl px-3 py-2 text-right text-xs font-semibold ${accentClassName}`}
@@ -41,7 +41,7 @@ export function DraftTeamPanel({
       <div className="mt-4 space-y-3">
         {players.length === 0 && (
           <p className="rounded-2xl border border-dashed border-white/10 px-4 py-5 text-sm text-slate-400">
-            Aucun joueur drafté pour le moment.
+            Aucun joueur sélectionné pour le moment.
           </p>
         )}
 
@@ -57,7 +57,7 @@ export function DraftTeamPanel({
                 <div>
                   <p className="font-medium text-white">{player.name}</p>
                   <p className="text-xs text-slate-400">
-                    {player.position} - {player.club}
+                    {player.position} · {player.club}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     <span className="inline-flex items-center gap-2">
