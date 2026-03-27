@@ -1,5 +1,5 @@
 import type { DraftRules } from '../game/rules';
-import type { MatchSideSummary } from '../game/simulation';
+import type { MatchSideStats, MatchSideSummary } from '../game/simulation';
 
 export type MultiplayerRoomStatus = 'waiting' | 'ready' | 'draft' | 'match' | 'finished';
 
@@ -26,6 +26,7 @@ export type MultiplayerMatchEvent = {
   team: MultiplayerPlayerSlot;
   type: 'goal' | 'chance' | 'save' | 'pressure' | 'shot';
   scorer?: string;
+  xg?: number;
   hostScore: number;
   guestScore: number;
   text: string;
@@ -37,6 +38,8 @@ export type MultiplayerMatchResult = {
   winner: MultiplayerPlayerSlot | 'draw';
   hostSummary: MatchSideSummary;
   guestSummary: MatchSideSummary;
+  hostStats: MatchSideStats;
+  guestStats: MatchSideStats;
   highlights: string[];
   events: MultiplayerMatchEvent[];
 };

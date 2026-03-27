@@ -30,6 +30,18 @@ const baseResult: MatchResult = {
     shotPrevention: 69,
     saveRate: 70,
   },
+  userStats: {
+    possession: 54,
+    shots: 8,
+    shotsOnTarget: 4,
+    xg: 1.72,
+  },
+  aiStats: {
+    possession: 46,
+    shots: 5,
+    shotsOnTarget: 2,
+    xg: 0.88,
+  },
   highlights: ['Ton milieu a imposé le rythme du match.'],
   events: [
     {
@@ -37,6 +49,7 @@ const baseResult: MatchResult = {
       team: 'user',
       type: 'goal',
       scorer: 'Player A',
+      xg: 0.34,
       userScore: 1,
       aiScore: 0,
       text: 'Player A conclut l’action.',
@@ -46,6 +59,7 @@ const baseResult: MatchResult = {
       team: 'ai',
       type: 'goal',
       scorer: 'Player B',
+      xg: 0.27,
       userScore: 1,
       aiScore: 1,
       text: 'Player B égalise.',
@@ -55,6 +69,7 @@ const baseResult: MatchResult = {
       team: 'user',
       type: 'goal',
       scorer: 'Player C',
+      xg: 0.41,
       userScore: 2,
       aiScore: 1,
       text: 'Player C redonne l’avantage.',
@@ -69,6 +84,8 @@ describe('multiplayer match mapping', () => {
     expect(roomResult.hostScore).toBe(2);
     expect(roomResult.guestScore).toBe(1);
     expect(roomResult.winner).toBe('host');
+    expect(roomResult.hostStats.possession).toBe(54);
+    expect(roomResult.guestStats.xg).toBe(0.88);
     expect(roomResult.events[0]?.team).toBe('host');
     expect(roomResult.events[1]?.team).toBe('guest');
     expect(roomResult.events[2]?.hostScore).toBe(2);
@@ -81,6 +98,8 @@ describe('multiplayer match mapping', () => {
     expect(roomResult.hostScore).toBe(1);
     expect(roomResult.guestScore).toBe(2);
     expect(roomResult.winner).toBe('guest');
+    expect(roomResult.hostStats.possession).toBe(46);
+    expect(roomResult.guestStats.shots).toBe(8);
     expect(roomResult.events[0]?.team).toBe('guest');
     expect(roomResult.events[1]?.team).toBe('host');
   });
@@ -92,6 +111,8 @@ describe('multiplayer match mapping', () => {
     expect(guestResult.userScore).toBe(1);
     expect(guestResult.aiScore).toBe(2);
     expect(guestResult.winner).toBe('ai');
+    expect(guestResult.userStats.possession).toBe(46);
+    expect(guestResult.aiStats.shotsOnTarget).toBe(4);
     expect(guestResult.events[0]?.team).toBe('ai');
     expect(guestResult.events[1]?.team).toBe('user');
   });
@@ -106,6 +127,7 @@ describe('multiplayer match mapping', () => {
           team: 'ai',
           type: 'goal',
           scorer: 'Neco Williams',
+          xg: 0.22,
           userScore: 0,
           aiScore: 1,
           text: 'Neco Williams conclut l’action pour ton équipe.',

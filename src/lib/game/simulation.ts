@@ -19,9 +19,17 @@ export type MatchEvent = {
   team: 'user' | 'ai';
   type: 'goal' | 'chance' | 'save' | 'pressure' | 'shot';
   scorer?: string;
+  xg?: number;
   userScore: number;
   aiScore: number;
   text: string;
+};
+
+export type MatchSideStats = {
+  possession: number;
+  shots: number;
+  shotsOnTarget: number;
+  xg: number;
 };
 
 export type MatchResult = {
@@ -30,6 +38,8 @@ export type MatchResult = {
   winner: 'user' | 'ai' | 'draw';
   userSummary: MatchSideSummary;
   aiSummary: MatchSideSummary;
+  userStats: MatchSideStats;
+  aiStats: MatchSideStats;
   highlights: string[];
   events: MatchEvent[];
 };
@@ -302,6 +312,61 @@ function maybeAddEvent(events: MatchEvent[], event: MatchEvent | null) {
   }
 }
 
+function roundXg(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function buildMatchStats(
+  userSummary: MatchSideSummary,
+  aiSummary: MatchSideSummary,
+  events: MatchEvent[],
+) {
+  const userPressure = events.filter(
+    (event) => event.team === 'user' && event.type === 'pressure',
+  ).length;
+  const aiPressure = events.filter(
+    (event) => event.team === 'ai' && event.type === 'pressure',
+  ).length;
+
+  const rawUserPossession =
+    50 +
+    (userSummary.midfield - aiSummary.midfield) * 0.7 +
+    (userSummary.chanceCreation - aiSummary.chanceCreation) * 0.08 +
+    (userPressure - aiPressure) * 1.8;
+  const userPossession = Math.round(clamp(rawUserPossession, 35, 65));
+  const aiPossession = 100 - userPossession;
+
+  const userShotEvents = events.filter(
+    (event) =>
+      event.team === 'user' &&
+      (event.type === 'shot' || event.type === 'save' || event.type === 'goal'),
+  );
+  const aiShotEvents = events.filter(
+    (event) =>
+      event.team === 'ai' &&
+      (event.type === 'shot' || event.type === 'save' || event.type === 'goal'),
+  );
+
+  return {
+    userStats: {
+      possession: userPossession,
+      shots: userShotEvents.length,
+      shotsOnTarget: userShotEvents.filter(
+        (event) => event.type === 'save' || event.type === 'goal',
+      ).length,
+      xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+    },
+    aiStats: {
+      possession: aiPossession,
+      shots: aiShotEvents.length,
+      shotsOnTarget: aiShotEvents.filter(
+        (event) => event.type === 'save' || event.type === 'goal',
+      ).length,
+      xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+    },
+  };
+}
+
 function simulateSegment(
   minute: number,
   attackingTeam: TeamContext,
@@ -366,12 +431,14 @@ function simulateSegment(
   });
 
   const shotOnTargetProbability = clamp((chanceQuality - 24) / 32, 0.48, 0.95);
+  const shotXg = roundXg(clamp((chanceQuality - 18) / 65, 0.04, 0.62));
 
   if (Math.random() > shotOnTargetProbability) {
     maybeAddEvent(events, {
       minute: minute + 1,
       team: attackingTeam.label,
       type: 'shot',
+      xg: shotXg,
       text: buildShotText(attackingTeam.label),
       userScore: score.user,
       aiScore: score.ai,
@@ -392,6 +459,7 @@ function simulateSegment(
       minute: minute + 1,
       team: defendingTeam.label,
       type: 'save',
+      xg: shotXg,
       text: buildSaveText(attackingTeam.label),
       userScore: score.user,
       aiScore: score.ai,
@@ -412,6 +480,7 @@ function simulateSegment(
     team: attackingTeam.label,
     type: 'goal',
     scorer,
+    xg: shotXg,
     text: buildGoalText(attackingTeam.label, scorer),
     userScore: score.user,
     aiScore: score.ai,
@@ -460,6 +529,11 @@ export function simulateMatch(userTeam: Player[], aiTeam: Player[]): MatchResult
   });
 
   const orderedEvents = [...events].sort((a, b) => a.minute - b.minute);
+  const { userStats, aiStats } = buildMatchStats(
+    userSummary,
+    aiSummary,
+    orderedEvents,
+  );
 
   return {
     userScore: score.user,
@@ -467,6 +541,8 @@ export function simulateMatch(userTeam: Player[], aiTeam: Player[]): MatchResult
     winner: score.user === score.ai ? 'draw' : score.user > score.ai ? 'user' : 'ai',
     userSummary,
     aiSummary,
+    userStats,
+    aiStats,
     highlights: buildHighlights(userSummary, aiSummary, score.user, score.ai, orderedEvents),
     events: orderedEvents,
   };

@@ -130,6 +130,89 @@ function adaptOpponentText(text: string, opponentLabel: string) {
     .replace(/\bIA\b/g, parts.plainName);
 }
 
+function roundXg(value: number) {
+  return (Math.round(value * 100) / 100).toFixed(2);
+}
+
+function buildVisibleStats(result: MatchResult, visibleEvents: MatchEvent[]) {
+  const userShotEvents = visibleEvents.filter(
+    (event) =>
+      event.team === 'user' &&
+      (event.type === 'shot' || event.type === 'save' || event.type === 'goal'),
+  );
+  const aiShotEvents = visibleEvents.filter(
+    (event) =>
+      event.team === 'ai' &&
+      (event.type === 'shot' || event.type === 'save' || event.type === 'goal'),
+  );
+
+  return {
+    user: {
+      possession: result.userStats.possession,
+      shots: userShotEvents.length,
+      shotsOnTarget: userShotEvents.filter(
+        (event) => event.type === 'save' || event.type === 'goal',
+      ).length,
+      xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+    },
+    ai: {
+      possession: result.aiStats.possession,
+      shots: aiShotEvents.length,
+      shotsOnTarget: aiShotEvents.filter(
+        (event) => event.type === 'save' || event.type === 'goal',
+      ).length,
+      xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+    },
+  };
+}
+
+function MatchStatsTable({
+  result,
+  visibleEvents,
+  opponentLabel,
+}: {
+  result: MatchResult;
+  visibleEvents: MatchEvent[];
+  opponentLabel: string;
+}) {
+  const stats = buildVisibleStats(result, visibleEvents);
+
+  const rows = [
+    { label: 'Possession', user: `${stats.user.possession}%`, ai: `${stats.ai.possession}%` },
+    { label: 'Tirs', user: `${stats.user.shots}`, ai: `${stats.ai.shots}` },
+    {
+      label: 'Tirs cadrés',
+      user: `${stats.user.shotsOnTarget}`,
+      ai: `${stats.ai.shotsOnTarget}`,
+    },
+    { label: 'xG', user: stats.user.xg, ai: stats.ai.xg },
+  ];
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-4 gap-y-2 text-sm">
+        <p className="text-center font-medium text-white">Ton équipe</p>
+        <p className="text-center text-slate-400">Statistiques</p>
+        <p className="text-center font-medium text-white">{opponentLabel}</p>
+
+        {rows.map((row) => (
+          <div key={row.label} className="contents">
+            <p className="border-t border-white/5 py-2 text-center font-semibold text-white">
+              {row.user}
+            </p>
+            <p className="border-t border-white/5 py-2 text-center text-slate-400">
+              {row.label}
+            </p>
+            <p className="border-t border-white/5 py-2 text-center font-semibold text-white">
+              {row.ai}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function MatchResultCard({
   result,
   userTeam,
@@ -274,6 +357,12 @@ export function MatchResultCard({
         </div>
       </div>
 
+      <MatchStatsTable
+        result={result}
+        visibleEvents={visibleEvents}
+        opponentLabel={opponentTextParts.cardLabel}
+      />
+
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <TeamPitch title="Ton équipe" players={userTeam} side="left" compact />
         <TeamPitch title={opponentTextParts.cardLabel} players={aiTeam} side="right" compact />
@@ -284,8 +373,8 @@ export function MatchResultCard({
           <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Ton équipe</p>
             <p className="mt-2 text-sm text-slate-300">
-              Général {result.userSummary.overall} - Attaque {result.userSummary.attack} - Milieu{' '}
-              {result.userSummary.midfield} - Défense {result.userSummary.defense}
+              Général {result.userSummary.overall} · Attaque {result.userSummary.attack} · Milieu{' '}
+              {result.userSummary.midfield} · Défense {result.userSummary.defense}
             </p>
           </div>
 
@@ -294,8 +383,8 @@ export function MatchResultCard({
               {opponentTextParts.cardLabel}
             </p>
             <p className="mt-2 text-sm text-slate-300">
-              Général {result.aiSummary.overall} - Attaque {result.aiSummary.attack} - Milieu{' '}
-              {result.aiSummary.midfield} - Défense {result.aiSummary.defense}
+              Général {result.aiSummary.overall} · Attaque {result.aiSummary.attack} · Milieu{' '}
+              {result.aiSummary.midfield} · Défense {result.aiSummary.defense}
             </p>
           </div>
         </div>
@@ -309,8 +398,7 @@ export function MatchResultCard({
           <div className="mt-4 space-y-3">
             {!hasStarted && (
               <p className="rounded-2xl border border-dashed border-white/10 px-4 py-5 text-sm text-slate-400">
-                Les deux joueurs sont prêts. Le match va démarrer en même temps chez tout le
-                monde.
+                Les deux joueurs sont prêts. Le match va démarrer en même temps chez tout le monde.
               </p>
             )}
 
@@ -363,17 +451,6 @@ export function MatchResultCard({
             })}
           </div>
         </div>
-
-        {isFinished && (
-          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-            <p className="text-sm font-semibold text-white">Résumé du match</p>
-            <ul className="mt-3 space-y-2 text-sm text-slate-300">
-              {result.highlights.map((highlight) => (
-                <li key={highlight}>{adaptOpponentText(highlight, opponentLabel)}</li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         <div className="flex flex-wrap gap-3">
           {showReplayActions ? (
