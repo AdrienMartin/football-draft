@@ -1,0 +1,473 @@
+import { getPlayerRole } from './draft';
+import type { Player } from '../../types/player';
+
+export type MatchSideSummary = {
+  attack: number;
+  midfield: number;
+  defense: number;
+  overall: number;
+  goalkeeping: number;
+  chanceCreation: number;
+  finishing: number;
+  transitionThreat: number;
+  shotPrevention: number;
+  saveRate: number;
+};
+
+export type MatchEvent = {
+  minute: number;
+  team: 'user' | 'ai';
+  type: 'goal' | 'chance' | 'save' | 'pressure' | 'shot';
+  scorer?: string;
+  userScore: number;
+  aiScore: number;
+  text: string;
+};
+
+export type MatchResult = {
+  userScore: number;
+  aiScore: number;
+  winner: 'user' | 'ai' | 'draw';
+  userSummary: MatchSideSummary;
+  aiSummary: MatchSideSummary;
+  highlights: string[];
+  events: MatchEvent[];
+};
+
+type TeamContext = {
+  label: 'user' | 'ai';
+  summary: MatchSideSummary;
+  scorers: string[];
+};
+
+const MATCH_SEGMENTS = [4, 9, 14, 20, 26, 33, 40, 48, 56, 64, 72, 79, 85, 89];
+
+function average(values: number[]) {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function randomBetween(min: number, max: number) {
+  return min + Math.random() * (max - min);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function sample<T>(items: T[]) {
+  return items[Math.floor(Math.random() * items.length)] ?? items[0];
+}
+
+function getTopScorers(players: Player[]) {
+  return [...players]
+    .sort((a, b) => {
+      const aScore = a.stats.shooting + a.stats.pace * 0.25 + a.rating * 0.2;
+      const bScore = b.stats.shooting + b.stats.pace * 0.25 + b.rating * 0.2;
+      return bScore - aScore;
+    })
+    .map((player) => player.name);
+}
+
+function getGoalkeeperStrength(players: Player[]) {
+  const goalkeeper = players.find((player) => getPlayerRole(player.position) === 'GK');
+
+  if (!goalkeeper) {
+    return 50;
+  }
+
+  return Math.round(
+    goalkeeper.stats.goalkeeping ??
+      goalkeeper.stats.defense * 0.65 +
+        goalkeeper.stats.passing * 0.15 +
+        goalkeeper.stats.physical * 0.1 +
+        goalkeeper.rating * 0.1,
+  );
+}
+
+function getPlayersByRole(players: Player[]) {
+  return {
+    attackers: players.filter((player) => getPlayerRole(player.position) === 'FWD'),
+    midfielders: players.filter((player) => getPlayerRole(player.position) === 'MID'),
+    defenders: players.filter((player) => getPlayerRole(player.position) === 'DEF'),
+    goalkeeper: players.find((player) => getPlayerRole(player.position) === 'GK'),
+  };
+}
+
+function getAttackerProfileBonus(players: Player[]) {
+  return players.reduce(
+    (bonus, player) => {
+      if (player.position === 'ST') {
+        bonus.finishing += 6;
+      } else if (player.position === 'CF') {
+        bonus.finishing += 3;
+        bonus.creation += 4;
+      } else if (player.position === 'LW' || player.position === 'RW') {
+        bonus.transition += 5;
+        bonus.creation += 2;
+      }
+
+      return bonus;
+    },
+    { finishing: 0, creation: 0, transition: 0 },
+  );
+}
+
+function getMidfieldProfileBonus(players: Player[]) {
+  return players.reduce(
+    (bonus, player) => {
+      if (player.position === 'CAM') {
+        bonus.creation += 6;
+      } else if (player.position === 'CDM') {
+        bonus.protection += 6;
+      } else if (player.position === 'CM') {
+        bonus.creation += 2;
+        bonus.protection += 2;
+      }
+
+      return bonus;
+    },
+    { creation: 0, protection: 0 },
+  );
+}
+
+function getDefenseProfileBonus(players: Player[]) {
+  return players.reduce(
+    (bonus, player) => {
+      if (player.position === 'CB') {
+        bonus.prevention += 5;
+      } else if (player.position === 'RB' || player.position === 'LB') {
+        bonus.transition += 4;
+        bonus.prevention += 2;
+      }
+
+      return bonus;
+    },
+    { prevention: 0, transition: 0 },
+  );
+}
+
+export function getTeamSummary(players: Player[]): MatchSideSummary {
+  const { attackers, midfielders, defenders, goalkeeper } = getPlayersByRole(players);
+  const overall = Math.round(average(players.map((player) => player.rating)));
+  const attackerBonus = getAttackerProfileBonus(attackers);
+  const midfieldBonus = getMidfieldProfileBonus(midfielders);
+  const defenseBonus = getDefenseProfileBonus(defenders);
+  const goalkeeperSaveRate = Math.round(
+    goalkeeper
+      ? (goalkeeper.stats.goalkeeping ?? 50) * 0.72 +
+          goalkeeper.stats.defense * 0.16 +
+          goalkeeper.stats.physical * 0.12
+      : 50,
+  );
+  const attack = Math.round(
+    average(
+      attackers.map(
+        (player) =>
+          player.stats.shooting * 0.52 +
+          player.stats.pace * 0.28 +
+          player.stats.passing * 0.2,
+      ),
+    ),
+  );
+  const midfield = Math.round(
+    average(
+      midfielders.map(
+        (player) =>
+          player.stats.passing * 0.48 +
+          player.stats.defense * 0.18 +
+          player.stats.shooting * 0.14 +
+          player.stats.physical * 0.2,
+      ),
+    ),
+  );
+  const defense = Math.round(
+    average(
+      defenders.map(
+        (player) =>
+          player.stats.defense * 0.55 +
+          player.stats.physical * 0.25 +
+          player.stats.passing * 0.2,
+      ),
+    ),
+  );
+
+  return {
+    attack,
+    midfield,
+    defense,
+    overall,
+    goalkeeping: getGoalkeeperStrength(players),
+    chanceCreation: Math.round(
+      midfield * 0.58 + attack * 0.2 + attackerBonus.creation + midfieldBonus.creation + defenseBonus.transition * 0.35,
+    ),
+    finishing: Math.round(attack * 0.72 + attackerBonus.finishing + midfield * 0.08),
+    transitionThreat: Math.round(
+      attack * 0.28 + midfield * 0.2 + attackerBonus.transition + defenseBonus.transition,
+    ),
+    shotPrevention: Math.round(defense * 0.72 + midfield * 0.14 + midfieldBonus.protection + defenseBonus.prevention),
+    saveRate: clamp(goalkeeperSaveRate, 45, 99),
+  };
+}
+
+function buildHighlights(
+  userSummary: MatchSideSummary,
+  aiSummary: MatchSideSummary,
+  userScore: number,
+  aiScore: number,
+  events: MatchEvent[],
+) {
+  const highlights: string[] = [];
+
+  if (userSummary.midfield > aiSummary.midfield + 4) {
+    highlights.push('Ton milieu a imposé le rythme du match.');
+  } else if (aiSummary.midfield > userSummary.midfield + 4) {
+    highlights.push("L'IA a mieux contrôlé la circulation du ballon.");
+  }
+
+  if (userSummary.goalkeeping > aiSummary.goalkeeping + 4) {
+    highlights.push('Ton gardien a apporté une vraie sécurité.');
+  } else if (aiSummary.goalkeeping > userSummary.goalkeeping + 4) {
+    highlights.push("Le gardien de l'IA a souvent repoussé les situations chaudes.");
+  }
+
+  if (events.filter((event) => event.type === 'goal').length <= 1) {
+    highlights.push('Le match a surtout été tactique, avec peu d’espaces.');
+  }
+
+  if (userScore === aiScore) {
+    highlights.push('Le score est resté indécis jusqu’au bout.');
+  } else if (Math.abs(userScore - aiScore) >= 2) {
+    highlights.push("L'écart final traduit une domination assez nette.");
+  } else {
+    highlights.push('Le match s’est joué sur des détails.');
+  }
+
+  return highlights;
+}
+
+function buildPressureEvent(
+  minute: number,
+  team: 'user' | 'ai',
+  text: string,
+  userScore: number,
+  aiScore: number,
+): MatchEvent {
+  return {
+    minute,
+    team,
+    type: 'pressure',
+    text,
+    userScore,
+    aiScore,
+  };
+}
+
+function buildChanceText(team: 'user' | 'ai', quality: number) {
+  if (quality >= 72) {
+    return team === 'user'
+      ? 'Ton équipe construit une énorme occasion dans la surface.'
+      : "L'IA se crée une situation très dangereuse.";
+  }
+
+  return team === 'user'
+    ? 'Ton équipe trouve une ouverture intéressante.'
+    : "L'IA parvient à accélérer dans les trente derniers mètres.";
+}
+
+function buildSaveText(team: 'user' | 'ai') {
+  return team === 'user'
+    ? "Le gardien adverse s'interpose sur une frappe dangereuse."
+    : 'Ton gardien sort un arrêt important.';
+}
+
+function buildShotText(team: 'user' | 'ai') {
+  return team === 'user'
+    ? 'La tentative de ton équipe passe à côté.'
+    : "La frappe de l'IA ne trouve pas le cadre.";
+}
+
+function buildGoalText(team: 'user' | 'ai', scorer: string) {
+  return team === 'user'
+    ? `${scorer} conclut l’action pour ton équipe.`
+    : `${scorer} punit ta défense pour l’IA.`;
+}
+
+function maybeAddEvent(events: MatchEvent[], event: MatchEvent | null) {
+  if (event) {
+    events.push(event);
+  }
+}
+
+function simulateSegment(
+  minute: number,
+  attackingTeam: TeamContext,
+  defendingTeam: TeamContext,
+  score: { user: number; ai: number },
+  events: MatchEvent[],
+) {
+  const attackingBias = score[attackingTeam.label] < score[defendingTeam.label] ? 3 : 0;
+  const defendingBias = score[defendingTeam.label] > score[attackingTeam.label] ? 2 : 0;
+  const fatigueFactor = minute > 70 ? 0.96 : minute > 45 ? 0.98 : 1;
+
+  const possessionEdge =
+    attackingTeam.summary.midfield -
+    defendingTeam.summary.midfield +
+    attackingBias -
+    defendingBias;
+  const possessionRoll = possessionEdge + randomBetween(-6, 6);
+
+  if (possessionRoll > 3) {
+    maybeAddEvent(
+      events,
+      buildPressureEvent(
+        minute,
+        attackingTeam.label,
+        attackingTeam.label === 'user'
+          ? 'Ton équipe installe une longue phase de possession.'
+          : "L'IA monopolise le ballon pendant plusieurs secondes.",
+        score.user,
+        score.ai,
+      ),
+    );
+  }
+
+  const chanceQuality =
+    (attackingTeam.summary.finishing * 0.34 +
+      attackingTeam.summary.chanceCreation * 0.38 +
+      attackingTeam.summary.transitionThreat * 0.16 +
+      randomBetween(10, 24) -
+      defendingTeam.summary.shotPrevention * 0.15 -
+      defendingTeam.summary.saveRate * 0.025) *
+    fatigueFactor;
+
+  const chanceProbability = clamp(
+    0.43 +
+      (attackingTeam.summary.chanceCreation - defendingTeam.summary.midfield) / 110 +
+      (attackingTeam.summary.transitionThreat - defendingTeam.summary.defense) / 155,
+    0.32,
+    0.84,
+  );
+
+  if (Math.random() > chanceProbability) {
+    return;
+  }
+
+  maybeAddEvent(events, {
+    minute,
+    team: attackingTeam.label,
+    type: 'chance',
+    text: buildChanceText(attackingTeam.label, chanceQuality),
+    userScore: score.user,
+    aiScore: score.ai,
+  });
+
+  const shotOnTargetProbability = clamp((chanceQuality - 24) / 32, 0.48, 0.95);
+
+  if (Math.random() > shotOnTargetProbability) {
+    maybeAddEvent(events, {
+      minute: minute + 1,
+      team: attackingTeam.label,
+      type: 'shot',
+      text: buildShotText(attackingTeam.label),
+      userScore: score.user,
+      aiScore: score.ai,
+    });
+    return;
+  }
+
+  const goalProbability = clamp(
+    0.31 +
+      (attackingTeam.summary.finishing - defendingTeam.summary.shotPrevention) / 130 +
+      (chanceQuality - defendingTeam.summary.saveRate) / 76,
+    0.2,
+    0.78,
+  );
+
+  if (Math.random() > goalProbability) {
+    maybeAddEvent(events, {
+      minute: minute + 1,
+      team: defendingTeam.label,
+      type: 'save',
+      text: buildSaveText(attackingTeam.label),
+      userScore: score.user,
+      aiScore: score.ai,
+    });
+    return;
+  }
+
+  const scorer = sample(attackingTeam.scorers) ?? 'Un attaquant';
+
+  if (attackingTeam.label === 'user') {
+    score.user += 1;
+  } else {
+    score.ai += 1;
+  }
+
+  maybeAddEvent(events, {
+    minute: minute + 1,
+    team: attackingTeam.label,
+    type: 'goal',
+    scorer,
+    text: buildGoalText(attackingTeam.label, scorer),
+    userScore: score.user,
+    aiScore: score.ai,
+  });
+}
+
+export function simulateMatch(userTeam: Player[], aiTeam: Player[]): MatchResult {
+  const userSummary = getTeamSummary(userTeam);
+  const aiSummary = getTeamSummary(aiTeam);
+  const userContext: TeamContext = {
+    label: 'user',
+    summary: userSummary,
+    scorers: getTopScorers(userTeam),
+  };
+  const aiContext: TeamContext = {
+    label: 'ai',
+    summary: aiSummary,
+    scorers: getTopScorers(aiTeam),
+  };
+  const events: MatchEvent[] = [];
+  const score = { user: 0, ai: 0 };
+
+  MATCH_SEGMENTS.forEach((minute) => {
+    const userMomentum =
+      userSummary.midfield * 0.48 +
+      userSummary.attack * 0.28 +
+      (score.user < score.ai ? 4 : 0) +
+      randomBetween(-6, 9);
+    const aiMomentum =
+      aiSummary.midfield * 0.48 +
+      aiSummary.attack * 0.28 +
+      (score.ai < score.user ? 4 : 0) +
+      randomBetween(-6, 9);
+
+    if (userMomentum >= aiMomentum) {
+      simulateSegment(minute, userContext, aiContext, score, events);
+    } else {
+      simulateSegment(minute, aiContext, userContext, score, events);
+    }
+
+    if (Math.abs(userMomentum - aiMomentum) > 4) {
+      const dominant = userMomentum > aiMomentum ? userContext : aiContext;
+      const defending = dominant.label === 'user' ? aiContext : userContext;
+      simulateSegment(minute + 2, dominant, defending, score, events);
+    }
+  });
+
+  const orderedEvents = [...events].sort((a, b) => a.minute - b.minute);
+
+  return {
+    userScore: score.user,
+    aiScore: score.ai,
+    winner: score.user === score.ai ? 'draw' : score.user > score.ai ? 'user' : 'ai',
+    userSummary,
+    aiSummary,
+    highlights: buildHighlights(userSummary, aiSummary, score.user, score.ai, orderedEvents),
+    events: orderedEvents,
+  };
+}
