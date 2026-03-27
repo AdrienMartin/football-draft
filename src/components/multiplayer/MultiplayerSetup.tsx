@@ -18,6 +18,29 @@ type MultiplayerSetupProps = {
 
 const MAX_TEAM_VALUE_OPTIONS = [250, 300, 350, 400];
 
+async function copyTextWithFallback(text: string) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.setAttribute('readonly', '');
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  const success = document.execCommand('copy');
+  document.body.removeChild(textArea);
+
+  if (!success) {
+    throw new Error('copy-failed');
+  }
+}
+
 export function MultiplayerSetup({
   players,
   setup,
@@ -31,7 +54,7 @@ export function MultiplayerSetup({
   const [selectedLeague, setSelectedLeague] = useState('ALL');
   const [selectedNationality, setSelectedNationality] = useState('ALL');
   const [selectedMaxTeamValue, setSelectedMaxTeamValue] = useState('ALL');
-  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   const isGuestFlow = setup.localSlot === 'guest' && Boolean(setup.roomId);
   const roomLoaded = Boolean(setup.room);
@@ -40,6 +63,7 @@ export function MultiplayerSetup({
   const canHostStartDraft =
     setup.localSlot === 'host' &&
     bothPlayersPresent &&
+    !setup.opponentDisconnected &&
     (setup.room?.status === 'ready' || setup.room?.status === 'waiting');
 
   const leagueOptions = useMemo(
@@ -68,24 +92,42 @@ export function MultiplayerSetup({
       return;
     }
 
-    await navigator.clipboard.writeText(setup.inviteLink);
-    setCopyState('copied');
-    window.setTimeout(() => setCopyState('idle'), 1500);
+    try {
+      await copyTextWithFallback(setup.inviteLink);
+      setCopyState('copied');
+    } catch {
+      setCopyState('failed');
+    }
+
+    window.setTimeout(() => setCopyState('idle'), 1800);
   }
 
   if (roomLoaded) {
     return (
-      <section className="mx-auto max-w-4xl rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-2xl shadow-black/20 backdrop-blur md:p-10">
-        <h2 className="text-3xl font-semibold text-white">Room multijoueur</h2>
+      <section className="mx-auto max-w-4xl rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 md:p-10">
+        <h2 className="text-2xl font-semibold text-white sm:text-3xl">Room multijoueur</h2>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
           La room est prête. On attend maintenant que les deux joueurs soient présents pour passer à
           la draft synchronisée.
         </p>
 
+        {setup.connectionIssue && (
+          <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
+            {setup.connectionIssue}
+          </div>
+        )}
+
+        {setup.opponentDisconnected && (
+          <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
+            Le joueur adverse semble déconnecté. La room peut reprendre automatiquement s’il
+            revient.
+          </div>
+        )}
+
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Room</p>
-            <p className="mt-3 text-lg font-semibold text-white">{setup.room?.id}</p>
+            <p className="mt-3 break-all text-lg font-semibold text-white">{setup.room?.id}</p>
             <p className="mt-2 text-sm text-slate-300">
               Statut : {bothPlayersPresent ? '2 joueurs connectés' : 'En attente d’un joueur'}
             </p>
@@ -123,7 +165,7 @@ export function MultiplayerSetup({
                   type="button"
                   onClick={() => void onJoinRoom()}
                   disabled={setup.isJoining || setup.guestName.trim().length === 0}
-                  className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                  className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-auto"
                 >
                   {setup.isJoining ? 'Connexion...' : 'Rejoindre la room'}
                 </button>
@@ -146,9 +188,18 @@ export function MultiplayerSetup({
                     onClick={handleCopyLink}
                     className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
                   >
-                    {copyState === 'copied' ? 'Lien copié' : 'Copier le lien'}
+                    {copyState === 'copied'
+                      ? 'Lien copié'
+                      : copyState === 'failed'
+                        ? 'Copie impossible'
+                        : 'Copier le lien'}
                   </button>
                 </div>
+                {copyState === 'failed' && (
+                  <p className="mt-2 text-xs text-amber-200">
+                    La copie automatique a échoué. Tu peux copier le lien manuellement.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -160,12 +211,12 @@ export function MultiplayerSetup({
           </div>
         )}
 
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {canHostStartDraft && (
             <button
               type="button"
               onClick={() => void onStartDraft()}
-              className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+              className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 sm:w-auto"
             >
               Lancer la draft
             </button>
@@ -173,7 +224,7 @@ export function MultiplayerSetup({
           <button
             type="button"
             onClick={onBack}
-            className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
           >
             Retour
           </button>
@@ -183,123 +234,106 @@ export function MultiplayerSetup({
   }
 
   return (
-    <section className="mx-auto max-w-5xl rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-2xl shadow-black/20 backdrop-blur md:p-10">
-      <h2 className="text-3xl font-semibold text-white">Créer une draft 1v1</h2>
+    <section className="mx-auto max-w-5xl rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 md:p-10">
+      <h2 className="text-2xl font-semibold text-white sm:text-3xl">Créer une draft 1v1</h2>
       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
         Le host choisit les règles, crée une room, puis partage le lien d’invitation avec l’autre
         joueur. Quand le second joueur rejoint, on pourra lancer la draft.
       </p>
 
-      <div className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+      {setup.connectionIssue && (
+        <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
+          {setup.connectionIssue}
+        </div>
+      )}
+
+      <div className="mt-8 space-y-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+        <label className="text-sm text-slate-300">
+          <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+            Nom du host
+          </span>
+          <input
+            value={setup.hostName}
+            onChange={(event) => onChangeHostName(event.target.value)}
+            placeholder="Exemple : Adrien"
+            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+          />
+        </label>
+
+        <div className="grid items-end gap-4 md:grid-cols-3">
           <label className="text-sm text-slate-300">
             <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-              Nom du host
+              Championnat
             </span>
-            <input
-              value={setup.hostName}
-              onChange={(event) => onChangeHostName(event.target.value)}
-              placeholder="Exemple : Adrien"
-              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-            />
+            <select
+              value={selectedLeague}
+              onChange={(event) => setSelectedLeague(event.target.value)}
+              className="h-[50px] w-full rounded-2xl border border-white/10 bg-slate-950 px-4 text-sm text-white outline-none"
+            >
+              <option value="ALL">Tous</option>
+              {leagueOptions.map((league) => (
+                <option key={league} value={league}>
+                  {league}
+                </option>
+              ))}
+            </select>
           </label>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="text-sm text-slate-300">
-              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-                Championnat
-              </span>
-              <select
-                value={selectedLeague}
-                onChange={(event) => setSelectedLeague(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-              >
-                <option value="ALL">Tous</option>
-                {leagueOptions.map((league) => (
-                  <option key={league} value={league}>
-                    {league}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Nationalité
+            </span>
+            <select
+              value={selectedNationality}
+              onChange={(event) => setSelectedNationality(event.target.value)}
+              className="h-[50px] w-full rounded-2xl border border-white/10 bg-slate-950 px-4 text-sm text-white outline-none"
+            >
+              <option value="ALL">Toutes</option>
+              {nationalityOptions.map((nationality) => (
+                <option key={nationality} value={nationality}>
+                  {nationality}
+                </option>
+              ))}
+            </select>
+          </label>
 
-            <label className="text-sm text-slate-300">
-              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-                Nationalité
-              </span>
-              <select
-                value={selectedNationality}
-                onChange={(event) => setSelectedNationality(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-              >
-                <option value="ALL">Toutes</option>
-                {nationalityOptions.map((nationality) => (
-                  <option key={nationality} value={nationality}>
-                    {nationality}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-sm text-slate-300">
-              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-                Valeur max par équipe
-              </span>
-              <select
-                value={selectedMaxTeamValue}
-                onChange={(event) => setSelectedMaxTeamValue(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-              >
-                <option value="ALL">Aucune limite</option>
-                {MAX_TEAM_VALUE_OPTIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {value} MEUR
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-            <p className="font-medium text-white">Aperçu des règles</p>
-            <p className="mt-2">
-              {formatPlayerCount(matchingPlayers.length)} correspondent à ces critères.
-            </p>
-            <p className="mt-2 text-slate-400">
-              Il faut au moins 10 joueurs dans le pool pour lancer une draft 5 vs 5.
-            </p>
-          </div>
-
-          {setup.error && (
-            <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
-              {setup.error}
-            </div>
-          )}
+          <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Valeur max par équipe
+            </span>
+            <select
+              value={selectedMaxTeamValue}
+              onChange={(event) => setSelectedMaxTeamValue(event.target.value)}
+              className="h-[50px] w-full rounded-2xl border border-white/10 bg-slate-950 px-4 text-sm text-white outline-none"
+            >
+              <option value="ALL">Aucune limite</option>
+              {MAX_TEAM_VALUE_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {value} MEUR
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">État Supabase</p>
-            <p className="mt-3 text-lg font-semibold text-white">
-              {isSupabaseConfigured ? 'Configuration détectée' : 'Variables manquantes'}
-            </p>
-            <p className="mt-3 text-sm text-slate-300">
-              {isSupabaseConfigured
-                ? 'La création de room est prête. On peut maintenant ouvrir une room via le lien et la rejoindre.'
-                : 'Ajoute VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY pour activer la création de room.'}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-            <p className="font-medium text-white">Table attendue</p>
-            <p className="mt-2 text-slate-400">
-              Exécute le SQL dans <span className="font-mono">supabase/multiplayer_rooms.sql</span>
-            </p>
-          </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+          <p className="font-medium text-white">Aperçu des règles</p>
+          <p className="mt-2">
+            {formatPlayerCount(matchingPlayers.length)} correspondent à ces critères.
+          </p>
+          <p className="mt-2 text-slate-400">
+            Il faut au moins 10 joueurs dans le pool pour lancer une draft 5 vs 5.
+          </p>
         </div>
+
+        {setup.error && (
+          <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
+            {setup.error}
+          </div>
+        )}
       </div>
 
-      <div className="mt-8 flex flex-wrap gap-3">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={() => void onCreateRoom(currentRules)}
@@ -309,14 +343,14 @@ export function MultiplayerSetup({
             matchingPlayers.length < 10 ||
             setup.isCreating
           }
-          className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+          className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-auto"
         >
           {setup.isCreating ? 'Création en cours...' : 'Créer la room'}
         </button>
         <button
           type="button"
           onClick={onBack}
-          className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+          className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
         >
           Retour
         </button>

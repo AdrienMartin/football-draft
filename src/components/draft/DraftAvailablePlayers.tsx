@@ -55,8 +55,8 @@ export function DraftAvailablePlayers({
   onPick,
 }: DraftAvailablePlayersProps) {
   return (
-    <section className="rounded-3xl border border-white/10 bg-slate-950/50 p-6">
-      <div className="mb-5 flex items-center justify-between gap-4">
+    <section className="rounded-3xl border border-white/10 bg-slate-950/50 p-4 sm:p-6">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-white">Joueurs disponibles</h3>
           <p className="mt-1 text-sm text-slate-400">
@@ -86,7 +86,7 @@ export function DraftAvailablePlayers({
         })}
       </div>
 
-      <div className="mb-5 grid gap-3 md:grid-cols-3">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-sm text-slate-300">
           <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
             Nationalité
@@ -123,7 +123,7 @@ export function DraftAvailablePlayers({
           </select>
         </label>
 
-        <label className="text-sm text-slate-300">
+        <label className="text-sm text-slate-300 sm:col-span-2 lg:col-span-1">
           <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
             Tri
           </span>
@@ -143,9 +143,7 @@ export function DraftAvailablePlayers({
 
       <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-300">
         <p className="font-medium text-white">Contraintes de draft</p>
-        <p className="mt-2">
-          Chaque équipe doit avoir au moins 1 GK, 1 DEF, 1 MID et 1 FWD.
-        </p>
+        <p className="mt-2">Chaque équipe doit avoir au moins 1 GK, 1 DEF, 1 MID et 1 FWD.</p>
         {maxTeamValue !== null && (
           <p className="mt-2">
             Budget de ton équipe : {currentTeamValue} / {maxTeamValue} MEUR.
@@ -161,11 +159,11 @@ export function DraftAvailablePlayers({
         </p>
       </div>
 
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-400">
           Page {currentPage} sur {totalPages}
         </p>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
           <button
             type="button"
             onClick={onPreviousPage}

@@ -6,6 +6,7 @@ import { LandingPage } from '../components/landing/LandingPage';
 import { MatchPreview } from '../components/match/MatchPreview';
 import { MatchResultCard } from '../components/match/MatchResultCard';
 import { MatchWaitingScreen } from '../components/match/MatchWaitingScreen';
+import { MultiplayerDisconnectedScreen } from '../components/multiplayer/MultiplayerDisconnectedScreen';
 import { MultiplayerSetup } from '../components/multiplayer/MultiplayerSetup';
 import { DraftRulesSetup } from '../components/rules/DraftRulesSetup';
 import {
@@ -60,6 +61,10 @@ export function HomePage() {
     (state) => state.startCurrentMultiplayerDraft,
   );
   const syncMultiplayerRoom = useGameStore((state) => state.syncMultiplayerRoom);
+  const setMultiplayerConnectionIssue = useGameStore(
+    (state) => state.setMultiplayerConnectionIssue,
+  );
+  const sendMultiplayerHeartbeat = useGameStore((state) => state.sendMultiplayerHeartbeat);
   const resetToLanding = useGameStore((state) => state.resetToLanding);
   const userPickPlayer = useGameStore((state) => state.userPickPlayer);
   const aiPickTurn = useGameStore((state) => state.aiPickTurn);
@@ -180,8 +185,26 @@ export function HomePage() {
       return;
     }
 
-    return subscribeToMultiplayerRoom(multiplayerSetup.roomId, syncMultiplayerRoom);
-  }, [multiplayerSetup.roomId, syncMultiplayerRoom]);
+    return subscribeToMultiplayerRoom(
+      multiplayerSetup.roomId,
+      syncMultiplayerRoom,
+      setMultiplayerConnectionIssue,
+    );
+  }, [multiplayerSetup.roomId, setMultiplayerConnectionIssue, syncMultiplayerRoom]);
+
+  useEffect(() => {
+    if (!multiplayerSetup.roomId || !multiplayerSetup.localSlot) {
+      return;
+    }
+
+    void sendMultiplayerHeartbeat();
+
+    const intervalId = window.setInterval(() => {
+      void sendMultiplayerHeartbeat();
+    }, 4000);
+
+    return () => window.clearInterval(intervalId);
+  }, [multiplayerSetup.localSlot, multiplayerSetup.roomId, sendMultiplayerHeartbeat]);
 
   useEffect(() => {
     if (mode === 'multiplayer' || currentTurn !== 'ai' || draftComplete || loading || error) {
@@ -209,6 +232,14 @@ export function HomePage() {
         {error}
       </div>
     );
+  }
+
+  if (
+    mode === 'multiplayer' &&
+    multiplayerSetup.opponentDisconnected &&
+    currentStep !== 'result'
+  ) {
+    return <MultiplayerDisconnectedScreen onBack={resetToLanding} />;
   }
 
   if (mode === 'multiplayer' && isPlayingMatch) {

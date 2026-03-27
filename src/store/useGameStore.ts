@@ -15,7 +15,9 @@ import {
 import {
   confirmMultiplayerMatchStart,
   createMultiplayerRoom,
+  getDisconnectedPlayerSlot,
   getMultiplayerRoom,
+  heartbeatMultiplayerRoom,
   joinMultiplayerRoom,
   makeMultiplayerPick,
   startMultiplayerDraft,
@@ -64,6 +66,8 @@ type GameState = {
   joinCurrentMultiplayerRoom: () => Promise<void>;
   startCurrentMultiplayerDraft: () => Promise<void>;
   syncMultiplayerRoom: (room: MultiplayerRoom) => void;
+  setMultiplayerConnectionIssue: (message: string | null) => void;
+  sendMultiplayerHeartbeat: () => Promise<void>;
   resetToLanding: () => void;
   userPickPlayer: (playerId: number) => Promise<void>;
   aiPickTurn: () => void;
@@ -316,15 +320,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       set((currentState) => ({
         mode: 'multiplayer',
         rules,
-        multiplayerSetup: {
-          ...currentState.multiplayerSetup,
-          room,
-          roomId: room.id,
-          inviteLink,
-          localSlot: 'host',
-          isCreating: false,
-          error: null,
-        },
+      multiplayerSetup: {
+        ...currentState.multiplayerSetup,
+        room,
+        roomId: room.id,
+        inviteLink,
+        localSlot: 'host',
+        isCreating: false,
+        error: null,
+        connectionIssue: null,
+        opponentDisconnected: false,
+      },
       }));
     } catch (error) {
       set((currentState) => ({
@@ -363,6 +369,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           localSlot: 'guest',
           isJoining: false,
           error: null,
+          connectionIssue: null,
+          opponentDisconnected: false,
         },
       }));
     } catch (error) {
@@ -414,6 +422,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           localSlot: 'guest',
           isJoining: false,
           error: null,
+          connectionIssue: null,
+          opponentDisconnected: false,
         },
       }));
     } catch (error) {
@@ -454,6 +464,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           ...currentState.multiplayerSetup,
           room,
           error: null,
+          connectionIssue: null,
+          opponentDisconnected: false,
         },
         ...hydrateMultiplayerRoom(room, currentState),
       }));
@@ -468,6 +480,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   syncMultiplayerRoom: (room) => {
     set((state) => ({
+      ...(room.status === 'draft' || room.status === 'match' || room.status === 'finished'
+        ? hydrateMultiplayerRoom(room, state)
+        : {}),
       mode: 'multiplayer',
       rules: room.rules,
       multiplayerSetup: {
@@ -482,11 +497,48 @@ export const useGameStore = create<GameState>((set, get) => ({
           state.multiplayerSetup.localSlot === 'guest' && state.multiplayerSetup.guestName
             ? state.multiplayerSetup.guestName
             : (room.guestName ?? state.multiplayerSetup.guestName),
+        connectionIssue: null,
+        opponentDisconnected:
+          room.status !== 'finished' &&
+          Boolean(getDisconnectedPlayerSlot(room, state.multiplayerSetup.localSlot)),
       },
-      ...(room.status === 'draft' || room.status === 'match' || room.status === 'finished'
-        ? hydrateMultiplayerRoom(room, state)
-        : {}),
     }));
+  },
+  setMultiplayerConnectionIssue: (message) =>
+    set((state) => ({
+      multiplayerSetup: {
+        ...state.multiplayerSetup,
+        connectionIssue: message,
+      },
+    })),
+  sendMultiplayerHeartbeat: async () => {
+    const state = get();
+    const roomId = state.multiplayerSetup.roomId;
+    const localSlot = state.multiplayerSetup.localSlot;
+
+    if (!roomId || !localSlot) {
+      return;
+    }
+
+    try {
+      await heartbeatMultiplayerRoom(roomId, localSlot);
+      set((currentState) => ({
+        multiplayerSetup: {
+          ...currentState.multiplayerSetup,
+          connectionIssue: null,
+        },
+      }));
+    } catch (error) {
+      set((currentState) => ({
+        multiplayerSetup: {
+          ...currentState.multiplayerSetup,
+          connectionIssue:
+            error instanceof Error
+              ? error.message
+              : 'Impossible de joindre Supabase pour le moment.',
+        },
+      }));
+    }
   },
   resetToLanding: () => {
     const state = get();

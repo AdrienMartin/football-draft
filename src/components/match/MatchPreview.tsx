@@ -11,22 +11,24 @@ type MatchPreviewProps = {
 export function MatchPreview({
   userTeam,
   aiTeam,
-  opponentLabel = 'Equipe adverse',
+  opponentLabel = 'Équipe adverse',
   onPlay,
 }: MatchPreviewProps) {
   const userValue = userTeam.reduce((sum, player) => sum + player.value, 0);
   const aiValue = aiTeam.reduce((sum, player) => sum + player.value, 0);
+  const isMultiplayer = opponentLabel !== 'Équipe IA';
 
   return (
-    <section className="relative rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur">
+    <section className="relative rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
       <h2 className="text-2xl font-semibold text-white">Simulation du match</h2>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-        Les equipes sont pretes. Chaque joueur doit confirmer le lancement pour demarrer un
-        deroule synchronise.
+        {isMultiplayer
+          ? 'Les équipes sont prêtes. Chaque joueur doit confirmer le lancement pour démarrer un déroulé synchronisé.'
+          : 'Les équipes sont prêtes. Lance la simulation pour voir le match se dérouler minute par minute.'}
       </p>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <TeamPitch title="Ton equipe" players={userTeam} side="left" />
+        <TeamPitch title="Ton équipe" players={userTeam} side="left" />
         <TeamPitch title={opponentLabel} players={aiTeam} side="right" />
       </div>
 
@@ -39,20 +41,26 @@ export function MatchPreview({
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Format</p>
           <p className="mt-2 text-lg font-semibold text-white">5 joueurs</p>
-          <p className="text-sm text-slate-400">match synchronise</p>
+          <p className="text-sm text-slate-400">
+            {isMultiplayer ? 'match synchronisé' : 'match solo'}
+          </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Lancement</p>
-          <p className="mt-2 text-lg font-semibold text-white">Validation des 2 joueurs</p>
-          <p className="text-sm text-slate-400">depart commun du chrono</p>
+          <p className="mt-2 text-lg font-semibold text-white">
+            {isMultiplayer ? 'Validation des 2 joueurs' : 'Départ immédiat'}
+          </p>
+          <p className="text-sm text-slate-400">
+            {isMultiplayer ? 'départ commun du chrono' : 'simulation locale'}
+          </p>
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={onPlay}
-          className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+          className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 sm:w-auto"
         >
           Lancer la simulation
         </button>

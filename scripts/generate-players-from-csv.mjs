@@ -78,14 +78,6 @@ function clamp(value, min = 1, max = 99) {
   return Math.round(Math.max(min, Math.min(max, value)));
 }
 
-function per90(total, minutes) {
-  if (!minutes || minutes <= 0) {
-    return 0;
-  }
-
-  return (total / minutes) * 90;
-}
-
 function normalize(value, min, max) {
   if (max <= min) {
     return 50;

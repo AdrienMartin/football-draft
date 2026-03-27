@@ -96,6 +96,31 @@ describe('multiplayer match mapping', () => {
     expect(guestResult.events[1]?.team).toBe('user');
   });
 
+  it('rewrites event and highlight text for the guest perspective', () => {
+    const resultWithPerspectiveText: MatchResult = {
+      ...baseResult,
+      highlights: ["L'IA a mieux contrôlé la circulation du ballon."],
+      events: [
+        {
+          minute: 90,
+          team: 'ai',
+          type: 'goal',
+          scorer: 'Neco Williams',
+          userScore: 0,
+          aiScore: 1,
+          text: 'Neco Williams conclut l’action pour ton équipe.',
+        },
+      ],
+    };
+
+    const roomResult = toRoomMatchResult(resultWithPerspectiveText, 'host');
+    const guestResult = toLocalMatchResult(roomResult, 'guest');
+
+    expect(guestResult.events[0]?.team).toBe('user');
+    expect(guestResult.events[0]?.text).toContain("pour l'IA");
+    expect(guestResult.highlights[0]).toContain('Ton équipe');
+  });
+
   it('keeps draw results stable across room and local mappings', () => {
     const drawResult: MatchResult = {
       ...baseResult,

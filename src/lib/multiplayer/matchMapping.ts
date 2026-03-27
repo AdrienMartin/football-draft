@@ -13,6 +13,38 @@ function mapEventTeam(team: 'user' | 'ai', slot: MultiplayerPlayerSlot): Multipl
   return team === 'user' ? 'guest' : 'host';
 }
 
+function swapPerspectiveText(text: string) {
+  return text
+    .replace(/Ton équipe/g, '__TMP_USER_TEAM_CAP__')
+    .replace(/ton équipe/g, '__TMP_USER_TEAM__')
+    .replace(/Ta défense/g, '__TMP_USER_DEF_CAP__')
+    .replace(/ta défense/g, '__TMP_USER_DEF__')
+    .replace(/Ton gardien/g, '__TMP_USER_GK_CAP__')
+    .replace(/ton gardien/g, '__TMP_USER_GK__')
+    .replace(/Le gardien adverse/g, '__TMP_OPP_GK_CAP__')
+    .replace(/le gardien adverse/g, '__TMP_OPP_GK__')
+    .replace(/L['’]IA/g, '__TMP_IA_CAP__')
+    .replace(/l['’]IA/g, '__TMP_IA__')
+    .replace(/__TMP_USER_TEAM_CAP__/g, "L'IA")
+    .replace(/__TMP_USER_TEAM__/g, "l'IA")
+    .replace(/__TMP_USER_DEF_CAP__/g, "L'IA")
+    .replace(/__TMP_USER_DEF__/g, "l'IA")
+    .replace(/__TMP_USER_GK_CAP__/g, "Le gardien de l'IA")
+    .replace(/__TMP_USER_GK__/g, "le gardien de l'IA")
+    .replace(/__TMP_OPP_GK_CAP__/g, 'Ton gardien')
+    .replace(/__TMP_OPP_GK__/g, 'ton gardien')
+    .replace(/__TMP_IA_CAP__/g, 'Ton équipe')
+    .replace(/__TMP_IA__/g, 'ton équipe');
+}
+
+function toLocalEventText(text: string, localSlot: MultiplayerPlayerSlot) {
+  return localSlot === 'host' ? text : swapPerspectiveText(text);
+}
+
+function toLocalHighlightText(text: string, localSlot: MultiplayerPlayerSlot) {
+  return localSlot === 'host' ? text : swapPerspectiveText(text);
+}
+
 export function toRoomMatchResult(
   result: MatchResult,
   slot: MultiplayerPlayerSlot,
@@ -63,7 +95,9 @@ export function toLocalMatchResult(
           : 'ai',
     userSummary: userIsHost ? matchResult.hostSummary : matchResult.guestSummary,
     aiSummary: userIsHost ? matchResult.guestSummary : matchResult.hostSummary,
-    highlights: matchResult.highlights,
+    highlights: matchResult.highlights.map((highlight) =>
+      toLocalHighlightText(highlight, localSlot),
+    ),
     events: matchResult.events.map((event) => ({
       minute: event.minute,
       team: event.team === localSlot ? 'user' : 'ai',
@@ -71,7 +105,7 @@ export function toLocalMatchResult(
       scorer: event.scorer,
       userScore: userIsHost ? event.hostScore : event.guestScore,
       aiScore: userIsHost ? event.guestScore : event.hostScore,
-      text: event.text,
+      text: toLocalEventText(event.text, localSlot),
     })),
   };
 }

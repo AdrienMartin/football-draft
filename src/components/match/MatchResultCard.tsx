@@ -76,7 +76,9 @@ function buildScorerSummary(events: MatchEvent[]) {
     user: [...userScorers.entries()].map(
       ([name, total]) => `${name}${total > 1 ? ` x${total}` : ''}`,
     ),
-    ai: [...aiScorers.entries()].map(([name, total]) => `${name}${total > 1 ? ` x${total}` : ''}`),
+    ai: [...aiScorers.entries()].map(
+      ([name, total]) => `${name}${total > 1 ? ` x${total}` : ''}`,
+    ),
   };
 }
 
@@ -100,12 +102,32 @@ function getInitialMinute(startedAt: string | null | undefined) {
   return Math.min(MATCH_DURATION, Math.floor(diff / TICK_MS) * MINUTE_STEP);
 }
 
+function getOpponentTextParts(opponentLabel: string) {
+  if (opponentLabel === 'Équipe IA') {
+    return {
+      cardLabel: opponentLabel,
+      sentenceLabel: "l'IA",
+      plainName: 'IA',
+      goalTarget: "l'IA",
+    };
+  }
+
+  return {
+    cardLabel: opponentLabel,
+    sentenceLabel: "l'équipe adverse",
+    plainName: 'adversaire',
+    goalTarget: "l'équipe adverse",
+  };
+}
+
 function adaptOpponentText(text: string, opponentLabel: string) {
+  const parts = getOpponentTextParts(opponentLabel);
+
   return text
-    .replace(/L['’]IA/g, opponentLabel)
-    .replace(/l['’]IA/g, opponentLabel.toLowerCase())
-    .replace(/gardien de l['’]IA/g, `gardien de ${opponentLabel.toLowerCase()}`)
-    .replace(/\bIA\b/g, opponentLabel);
+    .replace(/gardien de l['’]IA/g, `gardien de ${parts.sentenceLabel}`)
+    .replace(/L['’]IA/g, parts.sentenceLabel)
+    .replace(/l['’]IA/g, parts.sentenceLabel)
+    .replace(/\bIA\b/g, parts.plainName);
 }
 
 export function MatchResultCard({
@@ -118,6 +140,10 @@ export function MatchResultCard({
   onReplay,
   onResetDraft,
 }: MatchResultCardProps) {
+  const opponentTextParts = useMemo(
+    () => getOpponentTextParts(opponentLabel),
+    [opponentLabel],
+  );
   const [minute, setMinute] = useState(0);
   const [scorePulse, setScorePulse] = useState(false);
   const [isHalfTime, setIsHalfTime] = useState(false);
@@ -210,7 +236,7 @@ export function MatchResultCard({
         ? 'Match nul'
         : result.winner === 'user'
           ? 'Victoire de ton équipe'
-          : `Victoire de ${opponentLabel.toLowerCase()}`
+          : `Victoire de ${opponentTextParts.goalTarget}`
       : 'Match en cours';
 
   return (
@@ -227,6 +253,7 @@ export function MatchResultCard({
             {scorers.user.length > 0 ? <p>{scorers.user.join(', ')}</p> : null}
           </div>
         </div>
+
         <div className="flex min-w-28 flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-6">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
             {!hasStarted ? 'Départ' : isHalfTime ? 'Pause' : 'Chrono'}
@@ -235,10 +262,11 @@ export function MatchResultCard({
             {!hasStarted ? 'Prêt' : isHalfTime ? 'Mi-temps' : `${minute}'`}
           </p>
         </div>
+
         <div
           className={`rounded-2xl border border-white/10 bg-slate-950/40 p-6 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
         >
-          <p className="text-sm text-slate-400">{opponentLabel}</p>
+          <p className="text-sm text-slate-400">{opponentTextParts.cardLabel}</p>
           <p className="mt-2 text-5xl font-bold text-white">{liveScore.ai}</p>
           <div className="mt-3 min-h-10 text-sm text-slate-300">
             {scorers.ai.length > 0 ? <p>{scorers.ai.join(', ')}</p> : null}
@@ -248,7 +276,7 @@ export function MatchResultCard({
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <TeamPitch title="Ton équipe" players={userTeam} side="left" compact />
-        <TeamPitch title={opponentLabel} players={aiTeam} side="right" compact />
+        <TeamPitch title={opponentTextParts.cardLabel} players={aiTeam} side="right" compact />
       </div>
 
       <div className="mt-6 space-y-6">
@@ -260,8 +288,11 @@ export function MatchResultCard({
               {result.userSummary.midfield} - Défense {result.userSummary.defense}
             </p>
           </div>
+
           <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{opponentLabel}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+              {opponentTextParts.cardLabel}
+            </p>
             <p className="mt-2 text-sm text-slate-300">
               Général {result.aiSummary.overall} - Attaque {result.aiSummary.attack} - Milieu{' '}
               {result.aiSummary.midfield} - Défense {result.aiSummary.defense}
@@ -278,7 +309,8 @@ export function MatchResultCard({
           <div className="mt-4 space-y-3">
             {!hasStarted && (
               <p className="rounded-2xl border border-dashed border-white/10 px-4 py-5 text-sm text-slate-400">
-                Les deux joueurs sont prêts. Le match va démarrer en même temps chez tout le monde.
+                Les deux joueurs sont prêts. Le match va démarrer en même temps chez tout le
+                monde.
               </p>
             )}
 
@@ -302,18 +334,20 @@ export function MatchResultCard({
                       className={`${isGoal ? 'text-base font-bold uppercase tracking-[0.18em]' : 'text-sm font-semibold'} ${styles.title}`}
                     >
                       {isGoal
-                        ? `⚽ But${event.team === 'user' ? ' pour ton équipe' : ` pour ${opponentLabel.toLowerCase()}`}`
+                        ? `⚽ But${event.team === 'user' ? ' pour ton équipe' : ` pour ${opponentTextParts.goalTarget}`}`
                         : adaptOpponentText(event.text, opponentLabel)}
                     </p>
                     <span className={`${isGoal ? 'text-sm font-bold' : 'text-xs'} ${styles.minute}`}>
                       {event.minute}'
                     </span>
                   </div>
+
                   {isGoal && (
                     <p className="mt-2 text-sm font-medium text-white">
                       {adaptOpponentText(event.text, opponentLabel)}
                     </p>
                   )}
+
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <span
                       className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${styles.badge}`}

@@ -51,6 +51,8 @@ export type MultiplayerRoom = {
   status: MultiplayerRoomStatus;
   hostName: string | null;
   guestName: string | null;
+  hostConnectedAt: string | null;
+  guestConnectedAt: string | null;
   rules: DraftRules;
   draftState: MultiplayerDraftState | null;
   matchReady: MultiplayerMatchReadyState | null;
@@ -69,6 +71,8 @@ export type MultiplayerSetupState = {
   isCreating: boolean;
   isJoining: boolean;
   error: string | null;
+  connectionIssue: string | null;
+  opponentDisconnected: boolean;
 };
 
 export const DEFAULT_MULTIPLAYER_SETUP: MultiplayerSetupState = {
@@ -81,4 +85,6 @@ export const DEFAULT_MULTIPLAYER_SETUP: MultiplayerSetupState = {
   isCreating: false,
   isJoining: false,
   error: null,
+  connectionIssue: null,
+  opponentDisconnected: false,
 };

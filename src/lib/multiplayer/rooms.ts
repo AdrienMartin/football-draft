@@ -1,6 +1,6 @@
 import { canDraftPlayer, DRAFT_TEAM_SIZE, sortPlayersForDraft } from '../game/draft';
-import type { MatchResult } from '../game/simulation';
 import { applyDraftRules, canAddPlayerWithinBudget, type DraftRules } from '../game/rules';
+import type { MatchResult } from '../game/simulation';
 import { supabase } from '../supabase/client';
 import type { Player } from '../../types/player';
 import { toRoomMatchResult } from './matchMapping';
@@ -22,6 +22,8 @@ type MultiplayerRoomRow = {
   status: MultiplayerRoom['status'];
   host_name: string | null;
   guest_name: string | null;
+  host_connected_at: string | null;
+  guest_connected_at: string | null;
   rules: DraftRules;
   draft_state: MultiplayerDraftState | null;
   match_ready: MultiplayerMatchReadyState | null;
@@ -31,6 +33,17 @@ type MultiplayerRoomRow = {
 };
 
 const MATCH_START_DELAY_MS = 2500;
+const PLAYER_STALE_MS = 12000;
+
+function toMultiplayerErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : '';
+
+  if (/failed to fetch|network|load failed|fetch/i.test(message)) {
+    return 'Impossible de contacter Supabase pour le moment. Vérifie ta connexion puis réessaie.';
+  }
+
+  return message || fallback;
+}
 
 function buildInviteLink(roomId: string) {
   if (typeof window === 'undefined') {
@@ -48,6 +61,8 @@ function mapRoomRow(row: MultiplayerRoomRow): MultiplayerRoom {
     status: row.status,
     hostName: row.host_name,
     guestName: row.guest_name,
+    hostConnectedAt: row.host_connected_at,
+    guestConnectedAt: row.guest_connected_at,
     rules: row.rules,
     draftState: row.draft_state,
     matchReady: row.match_ready,
@@ -65,13 +80,13 @@ async function fetchRoomRow(roomId: string) {
   const { data, error } = await supabase
     .from('multiplayer_rooms')
     .select(
-      'id, status, host_name, guest_name, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
     )
     .eq('id', roomId)
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? 'Room introuvable.');
+    throw new Error(toMultiplayerErrorMessage(error, 'Room introuvable.'));
   }
 
   return data as MultiplayerRoomRow;
@@ -112,6 +127,7 @@ export async function createMultiplayerRoom({
   }
 
   const roomId = crypto.randomUUID();
+  const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('multiplayer_rooms')
     .insert({
@@ -119,6 +135,8 @@ export async function createMultiplayerRoom({
       status: 'waiting',
       host_name: hostName,
       guest_name: null,
+      host_connected_at: now,
+      guest_connected_at: null,
       rules,
       draft_state: null,
       match_ready: null,
@@ -126,12 +144,12 @@ export async function createMultiplayerRoom({
       match_started_at: null,
     })
     .select(
-      'id, status, host_name, guest_name, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
     )
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? 'Impossible de créer la room.');
+    throw new Error(toMultiplayerErrorMessage(error, 'Impossible de créer la room.'));
   }
 
   return {
@@ -161,16 +179,17 @@ export async function joinMultiplayerRoom(roomId: string, guestName: string) {
     .from('multiplayer_rooms')
     .update({
       guest_name: guestName,
+      guest_connected_at: new Date().toISOString(),
       status: nextStatus,
     })
     .eq('id', roomId)
     .select(
-      'id, status, host_name, guest_name, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
     )
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? 'Impossible de rejoindre la room.');
+    throw new Error(toMultiplayerErrorMessage(error, 'Impossible de rejoindre la room.'));
   }
 
   return mapRoomRow(data as MultiplayerRoomRow);
@@ -204,12 +223,12 @@ export async function startMultiplayerDraft(roomId: string, players: Player[]) {
     })
     .eq('id', roomId)
     .select(
-      'id, status, host_name, guest_name, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
     )
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? 'Impossible de lancer la draft.');
+    throw new Error(toMultiplayerErrorMessage(error, 'Impossible de lancer la draft.'));
   }
 
   return mapRoomRow(data as MultiplayerRoomRow);
@@ -293,12 +312,12 @@ export async function makeMultiplayerPick(
     .eq('id', roomId)
     .eq('status', 'draft')
     .select(
-      'id, status, host_name, guest_name, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
     )
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? 'Impossible d’enregistrer ce choix.');
+    throw new Error(toMultiplayerErrorMessage(error, 'Impossible d’enregistrer ce choix.'));
   }
 
   return mapRoomRow(data as MultiplayerRoomRow);
@@ -337,12 +356,17 @@ export async function confirmMultiplayerMatchStart(
       })
       .eq('id', roomId)
       .select(
-        'id, status, host_name, guest_name, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+        'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
       )
       .single();
 
     if (error || !data) {
-      throw new Error(error?.message ?? 'Impossible d’enregistrer ton accord pour lancer le match.');
+      throw new Error(
+        toMultiplayerErrorMessage(
+          error,
+          'Impossible d’enregistrer ton accord pour lancer le match.',
+        ),
+      );
     }
 
     return mapRoomRow(data as MultiplayerRoomRow);
@@ -360,20 +384,70 @@ export async function confirmMultiplayerMatchStart(
     })
     .eq('id', roomId)
     .select(
-      'id, status, host_name, guest_name, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
     )
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? 'Impossible de lancer la simulation du match.');
+    throw new Error(
+      toMultiplayerErrorMessage(error, 'Impossible de lancer la simulation du match.'),
+    );
   }
 
   return mapRoomRow(data as MultiplayerRoomRow);
 }
 
+export async function heartbeatMultiplayerRoom(
+  roomId: string,
+  slot: MultiplayerPlayerSlot,
+) {
+  if (!supabase) {
+    throw new Error('Supabase n’est pas configuré.');
+  }
+
+  const payload =
+    slot === 'host'
+      ? { host_connected_at: new Date().toISOString() }
+      : { guest_connected_at: new Date().toISOString() };
+
+  const { error } = await supabase.from('multiplayer_rooms').update(payload).eq('id', roomId);
+
+  if (error) {
+    throw new Error(
+      toMultiplayerErrorMessage(error, 'Impossible de mettre à jour l’état de connexion.'),
+    );
+  }
+}
+
+export function getDisconnectedPlayerSlot(
+  room: MultiplayerRoom,
+  localSlot: MultiplayerPlayerSlot | null,
+) {
+  if (!localSlot) {
+    return null;
+  }
+
+  const otherSlot = getOtherSlot(localSlot);
+  const otherName = otherSlot === 'host' ? room.hostName : room.guestName;
+  const otherConnectedAt = otherSlot === 'host' ? room.hostConnectedAt : room.guestConnectedAt;
+
+  if (!otherName || !otherConnectedAt) {
+    return null;
+  }
+
+  const lastSeen = new Date(otherConnectedAt).getTime();
+
+  if (Number.isNaN(lastSeen)) {
+    return null;
+  }
+
+  return Date.now() - lastSeen > PLAYER_STALE_MS ? otherSlot : null;
+}
+
 export function subscribeToMultiplayerRoom(
   roomId: string,
   onRoomChange: (room: MultiplayerRoom) => void,
+  onConnectionIssue?: (message: string | null) => void,
 ) {
   const client = supabase;
 
@@ -392,6 +466,7 @@ export function subscribeToMultiplayerRoom(
     }
 
     lastSnapshot = nextSnapshot;
+    onConnectionIssue?.(null);
     onRoomChange(nextRoom);
   }
 
@@ -415,7 +490,18 @@ export function subscribeToMultiplayerRoom(
         pushRoom(mapRoomRow(next as MultiplayerRoomRow));
       },
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        onConnectionIssue?.(null);
+        return;
+      }
+
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        onConnectionIssue?.(
+          'Connexion temps réel indisponible pour le moment. Tentative de reconnexion...',
+        );
+      }
+    });
 
   const pollRoom = window.setInterval(async () => {
     if (disposed) {
@@ -425,8 +511,13 @@ export function subscribeToMultiplayerRoom(
     try {
       const room = await getMultiplayerRoom(roomId);
       pushRoom(room);
-    } catch {
-      // On garde le fallback silencieux pour ne pas polluer l'UI.
+    } catch (error) {
+      onConnectionIssue?.(
+        toMultiplayerErrorMessage(
+          error,
+          'Impossible de récupérer la room pour le moment. Vérifie ta connexion.',
+        ),
+      );
     }
   }, 2000);
 
