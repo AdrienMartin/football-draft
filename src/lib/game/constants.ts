@@ -1,5 +1,6 @@
 export const APP_STEPS = [
   'landing',
+  'multiplayer',
   'rules',
   'draft',
   'match',

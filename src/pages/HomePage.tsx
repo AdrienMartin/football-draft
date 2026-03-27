@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DraftAvailablePlayers } from '../components/draft/DraftAvailablePlayers';
 import { DraftStatus } from '../components/draft/DraftStatus';
 import { DraftTeamPanel } from '../components/draft/DraftTeamPanel';
 import { LandingPage } from '../components/landing/LandingPage';
 import { MatchPreview } from '../components/match/MatchPreview';
 import { MatchResultCard } from '../components/match/MatchResultCard';
+import { MatchWaitingScreen } from '../components/match/MatchWaitingScreen';
+import { MultiplayerSetup } from '../components/multiplayer/MultiplayerSetup';
 import { DraftRulesSetup } from '../components/rules/DraftRulesSetup';
 import {
   canDraftPlayer,
@@ -12,8 +14,9 @@ import {
   getPlayerRole,
   type PlayerRole,
 } from '../lib/game/draft';
-import { loadPlayers } from '../lib/players/loadPlayers';
 import type { DraftRules } from '../lib/game/rules';
+import { subscribeToMultiplayerRoom } from '../lib/multiplayer/rooms';
+import { loadPlayers } from '../lib/players/loadPlayers';
 import { useGameStore } from '../store/useGameStore';
 
 type SortOption = 'rating-desc' | 'name-asc' | 'name-desc';
@@ -27,26 +30,51 @@ export function HomePage() {
   const [selectedLeague, setSelectedLeague] = useState('ALL');
   const [sortOption, setSortOption] = useState<SortOption>('rating-desc');
   const [currentPage, setCurrentPage] = useState(1);
+
+  const mode = useGameStore((state) => state.mode);
   const availablePlayers = useGameStore((state) => state.availablePlayers);
   const userTeam = useGameStore((state) => state.userTeam);
   const aiTeam = useGameStore((state) => state.aiTeam);
   const currentTurn = useGameStore((state) => state.currentTurn);
   const draftComplete = useGameStore((state) => state.draftComplete);
+  const isPlayingMatch = useGameStore((state) => state.isPlayingMatch);
+  const matchStartedAt = useGameStore((state) => state.matchStartedAt);
   const lastPick = useGameStore((state) => state.lastPick);
   const draftMessage = useGameStore((state) => state.draftMessage);
   const currentStep = useGameStore((state) => state.currentStep);
   const rules = useGameStore((state) => state.rules);
   const initialPlayers = useGameStore((state) => state.initialPlayers);
   const matchResult = useGameStore((state) => state.matchResult);
+  const multiplayerSetup = useGameStore((state) => state.multiplayerSetup);
   const loadInitialPlayers = useGameStore((state) => state.loadPlayers);
   const openRules = useGameStore((state) => state.openRules);
+  const openMultiplayerSetup = useGameStore((state) => state.openMultiplayerSetup);
   const startQuickDraft = useGameStore((state) => state.startQuickDraft);
   const startDraft = useGameStore((state) => state.startDraft);
+  const updateMultiplayerHostName = useGameStore((state) => state.updateMultiplayerHostName);
+  const updateMultiplayerGuestName = useGameStore((state) => state.updateMultiplayerGuestName);
+  const createMultiplayerRoom = useGameStore((state) => state.createMultiplayerRoom);
+  const loadMultiplayerRoomFromLink = useGameStore((state) => state.loadMultiplayerRoomFromLink);
+  const joinCurrentMultiplayerRoom = useGameStore((state) => state.joinCurrentMultiplayerRoom);
+  const startCurrentMultiplayerDraft = useGameStore(
+    (state) => state.startCurrentMultiplayerDraft,
+  );
+  const syncMultiplayerRoom = useGameStore((state) => state.syncMultiplayerRoom);
+  const resetToLanding = useGameStore((state) => state.resetToLanding);
   const userPickPlayer = useGameStore((state) => state.userPickPlayer);
   const aiPickTurn = useGameStore((state) => state.aiPickTurn);
   const playMatch = useGameStore((state) => state.playMatch);
   const replayMatch = useGameStore((state) => state.replayMatch);
   const resetDraft = useGameStore((state) => state.resetDraft);
+
+  const roomIdFromUrl = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    return params.get('roomId');
+  }, []);
 
   const requiredRoles = getMissingRequiredRoles(userTeam);
   const eligiblePlayers = availablePlayers.filter((player) =>
@@ -129,10 +157,14 @@ export function HomePage() {
   }, [currentPage, totalPages]);
 
   useEffect(() => {
-    async function fetchPlayers() {
+    async function initializePage() {
       try {
         const data = await loadPlayers();
         loadInitialPlayers(data);
+
+        if (roomIdFromUrl) {
+          await loadMultiplayerRoomFromLink(roomIdFromUrl);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur inconnue');
       } finally {
@@ -140,11 +172,19 @@ export function HomePage() {
       }
     }
 
-    void fetchPlayers();
-  }, [loadInitialPlayers]);
+    void initializePage();
+  }, [loadInitialPlayers, loadMultiplayerRoomFromLink, roomIdFromUrl]);
 
   useEffect(() => {
-    if (currentTurn !== 'ai' || draftComplete || loading || error) {
+    if (!multiplayerSetup.roomId) {
+      return;
+    }
+
+    return subscribeToMultiplayerRoom(multiplayerSetup.roomId, syncMultiplayerRoom);
+  }, [multiplayerSetup.roomId, syncMultiplayerRoom]);
+
+  useEffect(() => {
+    if (mode === 'multiplayer' || currentTurn !== 'ai' || draftComplete || loading || error) {
       return;
     }
 
@@ -153,7 +193,7 @@ export function HomePage() {
     }, 700);
 
     return () => window.clearTimeout(timeoutId);
-  }, [aiPickTurn, currentTurn, draftComplete, error, loading]);
+  }, [aiPickTurn, currentTurn, draftComplete, error, loading, mode]);
 
   if (loading) {
     return (
@@ -171,12 +211,32 @@ export function HomePage() {
     );
   }
 
+  if (mode === 'multiplayer' && isPlayingMatch) {
+    return <MatchWaitingScreen />;
+  }
+
   if (currentStep === 'landing') {
     return (
       <LandingPage
         onOpenRules={openRules}
         onQuickStart={startQuickDraft}
+        onOpenMultiplayer={openMultiplayerSetup}
         isReady={!loading && !error}
+      />
+    );
+  }
+
+  if (currentStep === 'multiplayer') {
+    return (
+      <MultiplayerSetup
+        players={initialPlayers}
+        setup={multiplayerSetup}
+        onChangeHostName={updateMultiplayerHostName}
+        onChangeGuestName={updateMultiplayerGuestName}
+        onCreateRoom={createMultiplayerRoom}
+        onJoinRoom={joinCurrentMultiplayerRoom}
+        onStartDraft={startCurrentMultiplayerDraft}
+        onBack={resetToLanding}
       />
     );
   }
@@ -200,6 +260,12 @@ export function HomePage() {
             currentTurn={currentTurn}
             isComplete={draftComplete}
             lastPick={lastPick}
+            title={mode === 'multiplayer' ? 'Draft 1v1' : 'Draft joueur contre IA'}
+            description={
+              mode === 'multiplayer'
+                ? 'Le host et le guest choisissent chacun 5 joueurs à tour de rôle.'
+                : 'Chaque équipe choisit 5 joueurs à tour de rôle. L’IA prend le meilleur joueur disponible selon sa note.'
+            }
           />
 
           {draftMessage && (
@@ -243,7 +309,7 @@ export function HomePage() {
           />
 
           <DraftTeamPanel
-            title="Équipe IA"
+            title={mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA'}
             players={aiTeam}
             accentClassName="bg-sky-400/15 text-sky-100"
           />
@@ -258,8 +324,8 @@ export function HomePage() {
         <MatchPreview
           userTeam={userTeam}
           aiTeam={aiTeam}
+          opponentLabel={mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA'}
           onPlay={playMatch}
-          onResetDraft={resetDraft}
         />
       )}
 
@@ -268,6 +334,9 @@ export function HomePage() {
           result={matchResult}
           userTeam={userTeam}
           aiTeam={aiTeam}
+          opponentLabel={mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA'}
+          startedAt={matchStartedAt}
+          showReplayActions={mode !== 'multiplayer'}
           onReplay={replayMatch}
           onResetDraft={resetDraft}
         />

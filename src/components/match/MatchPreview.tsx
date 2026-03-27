@@ -4,30 +4,30 @@ import { TeamPitch } from './TeamPitch';
 type MatchPreviewProps = {
   userTeam: Player[];
   aiTeam: Player[];
+  opponentLabel?: string;
   onPlay: () => void;
-  onResetDraft: () => void;
 };
 
 export function MatchPreview({
   userTeam,
   aiTeam,
+  opponentLabel = 'Equipe adverse',
   onPlay,
-  onResetDraft,
 }: MatchPreviewProps) {
   const userValue = userTeam.reduce((sum, player) => sum + player.value, 0);
   const aiValue = aiTeam.reduce((sum, player) => sum + player.value, 0);
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur">
+    <section className="relative rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur">
       <h2 className="text-2xl font-semibold text-white">Simulation du match</h2>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-        Les équipes sont prêtes. Tu peux voir leur disposition sur le terrain avant de lancer
-        un match rapide avec chronomètre et évolution du score.
+        Les equipes sont pretes. Chaque joueur doit confirmer le lancement pour demarrer un
+        deroule synchronise.
       </p>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <TeamPitch title="Ton équipe" players={userTeam} side="left" />
-        <TeamPitch title="Équipe IA" players={aiTeam} side="right" />
+        <TeamPitch title="Ton equipe" players={userTeam} side="left" />
+        <TeamPitch title={opponentLabel} players={aiTeam} side="right" />
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -39,12 +39,12 @@ export function MatchPreview({
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Format</p>
           <p className="mt-2 text-lg font-semibold text-white">5 joueurs</p>
-          <p className="text-sm text-slate-400">match rapide</p>
+          <p className="text-sm text-slate-400">match synchronise</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Enjeu</p>
-          <p className="mt-2 text-lg font-semibold text-white">Victoire directe</p>
-          <p className="text-sm text-slate-400">score et résumé final</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Lancement</p>
+          <p className="mt-2 text-lg font-semibold text-white">Validation des 2 joueurs</p>
+          <p className="text-sm text-slate-400">depart commun du chrono</p>
         </div>
       </div>
 
@@ -55,13 +55,6 @@ export function MatchPreview({
           className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
         >
           Lancer la simulation
-        </button>
-        <button
-          type="button"
-          onClick={onResetDraft}
-          className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-        >
-          Nouvelle draft
         </button>
       </div>
     </section>

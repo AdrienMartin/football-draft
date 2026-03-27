@@ -7,6 +7,9 @@ type MatchResultCardProps = {
   result: MatchResult;
   userTeam: Player[];
   aiTeam: Player[];
+  opponentLabel?: string;
+  startedAt?: string | null;
+  showReplayActions?: boolean;
   onReplay: () => void;
   onResetDraft: () => void;
 };
@@ -70,15 +73,48 @@ function buildScorerSummary(events: MatchEvent[]) {
   });
 
   return {
-    user: [...userScorers.entries()].map(([name, total]) => `${name}${total > 1 ? ` x${total}` : ''}`),
+    user: [...userScorers.entries()].map(
+      ([name, total]) => `${name}${total > 1 ? ` x${total}` : ''}`,
+    ),
     ai: [...aiScorers.entries()].map(([name, total]) => `${name}${total > 1 ? ` x${total}` : ''}`),
   };
+}
+
+function getInitialMinute(startedAt: string | null | undefined) {
+  if (!startedAt) {
+    return 0;
+  }
+
+  const startTime = new Date(startedAt).getTime();
+
+  if (Number.isNaN(startTime)) {
+    return 0;
+  }
+
+  const diff = Date.now() - startTime;
+
+  if (diff <= 0) {
+    return 0;
+  }
+
+  return Math.min(MATCH_DURATION, Math.floor(diff / TICK_MS) * MINUTE_STEP);
+}
+
+function adaptOpponentText(text: string, opponentLabel: string) {
+  return text
+    .replace(/L['’]IA/g, opponentLabel)
+    .replace(/l['’]IA/g, opponentLabel.toLowerCase())
+    .replace(/gardien de l['’]IA/g, `gardien de ${opponentLabel.toLowerCase()}`)
+    .replace(/\bIA\b/g, opponentLabel);
 }
 
 export function MatchResultCard({
   result,
   userTeam,
   aiTeam,
+  opponentLabel = 'Équipe adverse',
+  startedAt = null,
+  showReplayActions = true,
   onReplay,
   onResetDraft,
 }: MatchResultCardProps) {
@@ -87,11 +123,13 @@ export function MatchResultCard({
   const [isHalfTime, setIsHalfTime] = useState(false);
 
   useEffect(() => {
-    setMinute(0);
+    const initialMinute = getInitialMinute(startedAt);
+    setMinute(initialMinute);
     setIsHalfTime(false);
 
     let intervalId: number | null = null;
     let halfTimeTimeoutId: number | null = null;
+    let preStartTimeoutId: number | null = null;
 
     const startClock = () => {
       intervalId = window.setInterval(() => {
@@ -105,7 +143,7 @@ export function MatchResultCard({
 
           const nextMinute = Math.min(MATCH_DURATION, currentMinute + MINUTE_STEP);
 
-          if (nextMinute === HALF_TIME_MINUTE) {
+          if (nextMinute === HALF_TIME_MINUTE && currentMinute < HALF_TIME_MINUTE) {
             if (intervalId !== null) {
               window.clearInterval(intervalId);
             }
@@ -121,7 +159,14 @@ export function MatchResultCard({
       }, TICK_MS);
     };
 
-    startClock();
+    const startTime = startedAt ? new Date(startedAt).getTime() : Date.now();
+    const delay = Math.max(0, startTime - Date.now());
+
+    if (delay > 0 && initialMinute === 0) {
+      preStartTimeoutId = window.setTimeout(startClock, delay);
+    } else if (initialMinute < MATCH_DURATION) {
+      startClock();
+    }
 
     return () => {
       if (intervalId !== null) {
@@ -130,8 +175,11 @@ export function MatchResultCard({
       if (halfTimeTimeoutId !== null) {
         window.clearTimeout(halfTimeTimeoutId);
       }
+      if (preStartTimeoutId !== null) {
+        window.clearTimeout(preStartTimeoutId);
+      }
     };
-  }, [result]);
+  }, [result, startedAt]);
 
   const visibleEvents = result.events.filter((event) => event.minute <= minute);
   const liveScore = visibleEvents.reduce(
@@ -153,14 +201,17 @@ export function MatchResultCard({
     return () => window.clearTimeout(timeoutId);
   }, [visibleEvents.length]);
 
+  const hasStarted = startedAt ? Date.now() >= new Date(startedAt).getTime() : true;
   const isFinished = minute >= MATCH_DURATION;
-  const title = isFinished
-    ? result.winner === 'draw'
-      ? 'Match nul'
-      : result.winner === 'user'
-        ? 'Victoire de ton équipe'
-        : "Victoire de l’IA"
-    : 'Match en cours';
+  const title = !hasStarted
+    ? 'Coup d’envoi imminent'
+    : isFinished
+      ? result.winner === 'draw'
+        ? 'Match nul'
+        : result.winner === 'user'
+          ? 'Victoire de ton équipe'
+          : `Victoire de ${opponentLabel.toLowerCase()}`
+      : 'Match en cours';
 
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur">
@@ -178,16 +229,16 @@ export function MatchResultCard({
         </div>
         <div className="flex min-w-28 flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-6">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-            {isHalfTime ? 'Pause' : 'Chrono'}
+            {!hasStarted ? 'Départ' : isHalfTime ? 'Pause' : 'Chrono'}
           </p>
           <p className="mt-2 text-4xl font-bold text-white">
-            {isHalfTime ? 'Mi-temps' : `${minute}'`}
+            {!hasStarted ? 'Prêt' : isHalfTime ? 'Mi-temps' : `${minute}'`}
           </p>
         </div>
         <div
           className={`rounded-2xl border border-white/10 bg-slate-950/40 p-6 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
         >
-          <p className="text-sm text-slate-400">Équipe IA</p>
+          <p className="text-sm text-slate-400">{opponentLabel}</p>
           <p className="mt-2 text-5xl font-bold text-white">{liveScore.ai}</p>
           <div className="mt-3 min-h-10 text-sm text-slate-300">
             {scorers.ai.length > 0 ? <p>{scorers.ai.join(', ')}</p> : null}
@@ -197,7 +248,7 @@ export function MatchResultCard({
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <TeamPitch title="Ton équipe" players={userTeam} side="left" compact />
-        <TeamPitch title="Équipe IA" players={aiTeam} side="right" compact />
+        <TeamPitch title={opponentLabel} players={aiTeam} side="right" compact />
       </div>
 
       <div className="mt-6 space-y-6">
@@ -210,7 +261,7 @@ export function MatchResultCard({
             </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Équipe IA</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{opponentLabel}</p>
             <p className="mt-2 text-sm text-slate-300">
               Général {result.aiSummary.overall} - Attaque {result.aiSummary.attack} - Milieu{' '}
               {result.aiSummary.midfield} - Défense {result.aiSummary.defense}
@@ -225,7 +276,13 @@ export function MatchResultCard({
           </div>
 
           <div className="mt-4 space-y-3">
-            {visibleEvents.length === 0 && (
+            {!hasStarted && (
+              <p className="rounded-2xl border border-dashed border-white/10 px-4 py-5 text-sm text-slate-400">
+                Les deux joueurs sont prêts. Le match va démarrer en même temps chez tout le monde.
+              </p>
+            )}
+
+            {hasStarted && visibleEvents.length === 0 && (
               <p className="rounded-2xl border border-dashed border-white/10 px-4 py-5 text-sm text-slate-400">
                 Le match vient de commencer. Attends les premières actions...
               </p>
@@ -245,14 +302,18 @@ export function MatchResultCard({
                       className={`${isGoal ? 'text-base font-bold uppercase tracking-[0.18em]' : 'text-sm font-semibold'} ${styles.title}`}
                     >
                       {isGoal
-                        ? `⚽ But${event.team === 'user' ? ' pour ton équipe' : ' pour l’IA'}`
-                        : event.text}
+                        ? `⚽ But${event.team === 'user' ? ' pour ton équipe' : ` pour ${opponentLabel.toLowerCase()}`}`
+                        : adaptOpponentText(event.text, opponentLabel)}
                     </p>
                     <span className={`${isGoal ? 'text-sm font-bold' : 'text-xs'} ${styles.minute}`}>
                       {event.minute}'
                     </span>
                   </div>
-                  {isGoal && <p className="mt-2 text-sm font-medium text-white">{event.text}</p>}
+                  {isGoal && (
+                    <p className="mt-2 text-sm font-medium text-white">
+                      {adaptOpponentText(event.text, opponentLabel)}
+                    </p>
+                  )}
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <span
                       className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${styles.badge}`}
@@ -274,27 +335,39 @@ export function MatchResultCard({
             <p className="text-sm font-semibold text-white">Résumé du match</p>
             <ul className="mt-3 space-y-2 text-sm text-slate-300">
               {result.highlights.map((highlight) => (
-                <li key={highlight}>{highlight}</li>
+                <li key={highlight}>{adaptOpponentText(highlight, opponentLabel)}</li>
               ))}
             </ul>
           </div>
         )}
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={onReplay}
-            className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-          >
-            Rejouer le match
-          </button>
-          <button
-            type="button"
-            onClick={onResetDraft}
-            className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-          >
-            Nouvelle draft
-          </button>
+          {showReplayActions ? (
+            <>
+              <button
+                type="button"
+                onClick={onReplay}
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+              >
+                Rejouer le match
+              </button>
+              <button
+                type="button"
+                onClick={onResetDraft}
+                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Nouvelle draft
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={onResetDraft}
+              className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+            >
+              Retour à l’accueil
+            </button>
+          )}
         </div>
       </div>
     </section>
