@@ -252,7 +252,10 @@ export function HomePage() {
     multiplayerSetup.opponentDisconnected &&
     currentStep !== 'result'
   ) {
-    return <MultiplayerDisconnectedScreen onBack={resetToLanding} />;
+    const disconnectPhase =
+      currentStep === 'draft' ? 'draft' : currentStep === 'match' ? 'match' : 'room';
+
+    return <MultiplayerDisconnectedScreen onBack={resetToLanding} phase={disconnectPhase} />;
   }
 
   if (mode === 'multiplayer' && isPlayingMatch) {

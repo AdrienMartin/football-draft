@@ -17,9 +17,11 @@ import {
   createMultiplayerRoom,
   getDisconnectedPlayerSlot,
   getMultiplayerRoom,
+  getStoredRoomMembership,
   heartbeatMultiplayerRoom,
   joinMultiplayerRoom,
   makeMultiplayerPick,
+  storeRoomMembership,
   startMultiplayerDraft,
 } from '../lib/multiplayer/rooms';
 import { toLocalMatchResult } from '../lib/multiplayer/matchMapping';
@@ -316,6 +318,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         hostName,
         rules,
       });
+      storeRoomMembership(room.id, 'host', hostName);
 
       set((currentState) => ({
         mode: 'multiplayer',
@@ -357,6 +360,24 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     try {
       const room = await getMultiplayerRoom(roomId);
+      const storedMembership = getStoredRoomMembership(room.id);
+      const canReconnectAsHost =
+        storedMembership?.slot === 'host' &&
+        Boolean(room.hostName) &&
+        room.hostName === storedMembership.name;
+      const canReconnectAsGuest =
+        storedMembership?.slot === 'guest' &&
+        Boolean(room.guestName) &&
+        room.guestName === storedMembership.name;
+      const localSlot = canReconnectAsHost
+        ? 'host'
+        : canReconnectAsGuest || !room.guestName
+          ? 'guest'
+          : null;
+
+      if (!localSlot) {
+        throw new Error('Cette room est déjà complète. Utilise ton lien enregistré pour te reconnecter.');
+      }
 
       set((currentState) => ({
         mode: 'multiplayer',
@@ -366,7 +387,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           room,
           roomId: room.id,
           inviteLink: null,
-          localSlot: 'guest',
+          localSlot,
           isJoining: false,
           error: null,
           connectionIssue: null,
@@ -412,6 +433,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     try {
       const room = await joinMultiplayerRoom(roomId, guestName);
+      storeRoomMembership(room.id, 'guest', guestName);
 
       set((currentState) => ({
         mode: 'multiplayer',

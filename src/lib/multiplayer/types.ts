@@ -63,6 +63,7 @@ export type MultiplayerRoom = {
   matchResult: MultiplayerMatchResult | null;
   matchStartedAt: string | null;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type MultiplayerSetupState = {

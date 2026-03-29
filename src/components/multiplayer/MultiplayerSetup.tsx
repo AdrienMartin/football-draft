@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { applyDraftRules, type DraftRules } from '../../lib/game/rules';
+import { isPlayerConnectionStale } from '../../lib/multiplayer/rooms';
 import { formatPlayerCount } from '../../lib/players/formatters';
 import type { MultiplayerSetupState } from '../../lib/multiplayer/types';
 import { isSupabaseConfigured } from '../../lib/supabase/client';
@@ -54,24 +55,29 @@ function formatRulesSummary(rules: DraftRules) {
 function PlayerStatusCard({
   label,
   name,
+  connectedAt,
   tone,
 }: {
   label: string;
   name: string | null;
+  connectedAt: string | null;
   tone: 'emerald' | 'sky';
 }) {
   const toneClass =
     tone === 'emerald'
       ? 'border-emerald-400/20 bg-emerald-400/10'
       : 'border-sky-400/20 bg-sky-400/10';
+  const statusLabel = !name
+    ? 'Pas encore rejoint'
+    : isPlayerConnectionStale(connectedAt)
+      ? 'Reconnexion...'
+      : 'Connecté';
 
   return (
     <div className={`rounded-2xl border p-4 ${toneClass}`}>
       <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{label}</p>
       <p className="mt-2 text-lg font-semibold text-white">{name ?? 'En attente'}</p>
-      <p className="mt-1 text-sm text-slate-300">
-        {name ? 'Connecté' : 'Pas encore rejoint'}
-      </p>
+      <p className="mt-1 text-sm text-slate-300">{statusLabel}</p>
     </div>
   );
 }
@@ -107,7 +113,9 @@ export function MultiplayerSetup({
   );
   const nationalityOptions = useMemo(
     () =>
-      [...new Set(players.map((player) => player.nationality))].sort((a, b) => a.localeCompare(b)),
+      [...new Set(players.map((player) => player.nationality))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
     [players],
   );
 
@@ -135,6 +143,83 @@ export function MultiplayerSetup({
     }
 
     window.setTimeout(() => setCopyState('idle'), 1800);
+  }
+
+  if (roomLoaded && isGuestFlow && !setup.room?.guestName) {
+    return (
+      <section className="mx-auto max-w-3xl rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 md:p-10">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-sky-200/80">
+            Duel 1v1
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">
+            Rejoindre la room
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+            Entre ton pseudo pour rejoindre la partie creee par {setup.room?.hostName ?? 'le host'}.
+          </p>
+        </div>
+
+        {setup.connectionIssue && (
+          <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
+            {setup.connectionIssue}
+          </div>
+        )}
+
+        <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <PlayerStatusCard
+            label="Host"
+            name={setup.room?.hostName ?? null}
+            connectedAt={setup.room?.hostConnectedAt ?? null}
+            tone="emerald"
+          />
+          <PlayerStatusCard label="Guest" name={null} connectedAt={null} tone="sky" />
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Regles de la draft</p>
+          <p className="mt-3 text-sm leading-6 text-slate-200">
+            {setup.room ? formatRulesSummary(setup.room.rules) : ''}
+          </p>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
+          <p className="text-sm font-medium text-white">Ton pseudo</p>
+          <div className="mt-4 space-y-3">
+            <input
+              value={setup.guestName}
+              onChange={(event) => onChangeGuestName(event.target.value)}
+              placeholder="Ton nom de joueur"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => void onJoinRoom()}
+              disabled={setup.isJoining || setup.guestName.trim().length === 0}
+              className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-auto"
+            >
+              {setup.isJoining ? 'Connexion...' : 'Rejoindre la room'}
+            </button>
+          </div>
+        </div>
+
+        {setup.error && (
+          <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
+            {setup.error}
+          </div>
+        )}
+
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
+          >
+            Retour
+          </button>
+        </div>
+      </section>
+    );
   }
 
   if (roomLoaded) {
@@ -166,14 +251,23 @@ export function MultiplayerSetup({
 
         {setup.opponentDisconnected && (
           <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
-            Le joueur adverse semble déconnecté. La room peut reprendre automatiquement s’il
-            revient.
+            Le joueur adverse semble déconnecté. La room pourra reprendre automatiquement s'il revient.
           </div>
         )}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <PlayerStatusCard label="Host" name={setup.room?.hostName ?? null} tone="emerald" />
-          <PlayerStatusCard label="Guest" name={setup.room?.guestName ?? null} tone="sky" />
+          <PlayerStatusCard
+            label="Host"
+            name={setup.room?.hostName ?? null}
+            connectedAt={setup.room?.hostConnectedAt ?? null}
+            tone="emerald"
+          />
+          <PlayerStatusCard
+            label="Guest"
+            name={setup.room?.guestName ?? null}
+            connectedAt={setup.room?.guestConnectedAt ?? null}
+            tone="sky"
+          />
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
@@ -183,35 +277,13 @@ export function MultiplayerSetup({
           </p>
         </div>
 
-        {isGuestFlow && !setup.room?.guestName && (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-            <p className="text-sm font-medium text-white">Rejoindre la room</p>
-            <div className="mt-4 space-y-3">
-              <input
-                value={setup.guestName}
-                onChange={(event) => onChangeGuestName(event.target.value)}
-                placeholder="Ton nom de joueur"
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => void onJoinRoom()}
-                disabled={setup.isJoining || setup.guestName.trim().length === 0}
-                className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-auto"
-              >
-                {setup.isJoining ? 'Connexion...' : 'Rejoindre la room'}
-              </button>
-            </div>
-          </div>
-        )}
-
         {setup.inviteLink && waitingForGuest && (
           <div className="mt-4 rounded-2xl border border-white/10 bg-gradient-to-r from-sky-400/10 to-emerald-400/10 p-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-medium text-white">Inviter un joueur</p>
                 <p className="mt-1 text-sm text-slate-300">
-                  Envoie ce lien à ton adversaire pour qu’il rejoigne la room.
+                  Envoie ce lien à ton adversaire pour qu'il rejoigne la room.
                 </p>
               </div>
               <button
@@ -270,10 +342,6 @@ export function MultiplayerSetup({
   return (
     <section className="mx-auto max-w-5xl rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 md:p-10">
       <h2 className="text-2xl font-semibold text-white sm:text-3xl">Créer une draft 1v1</h2>
-      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-        Le host choisit les règles, crée une room, puis partage le lien d’invitation avec l’autre
-        joueur. Quand le second joueur rejoint, on pourra lancer la draft.
-      </p>
 
       {setup.connectionIssue && (
         <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">

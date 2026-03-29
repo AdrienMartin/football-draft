@@ -30,10 +30,20 @@ type MultiplayerRoomRow = {
   match_result: MultiplayerMatchResult | null;
   match_started_at: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 const MATCH_START_DELAY_MS = 2500;
 const PLAYER_STALE_MS = 12000;
+const ROOM_ACTIVE_EXPIRATION_MS = 1000 * 60 * 60 * 6;
+const ROOM_FINISHED_EXPIRATION_MS = 1000 * 60 * 90;
+const ROOM_MEMBERSHIP_STORAGE_KEY = 'football-draft-room-memberships';
+
+type StoredRoomMembership = {
+  slot: MultiplayerPlayerSlot;
+  name: string;
+  savedAt: string;
+};
 
 function toMultiplayerErrorMessage(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : '';
@@ -55,6 +65,60 @@ function buildInviteLink(roomId: string) {
   return url.toString();
 }
 
+function readStoredRoomMemberships() {
+  if (typeof window === 'undefined') {
+    return {} as Record<string, StoredRoomMembership>;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(ROOM_MEMBERSHIP_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, StoredRoomMembership>) : {};
+  } catch {
+    return {} as Record<string, StoredRoomMembership>;
+  }
+}
+
+function writeStoredRoomMemberships(memberships: Record<string, StoredRoomMembership>) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(ROOM_MEMBERSHIP_STORAGE_KEY, JSON.stringify(memberships));
+}
+
+export function storeRoomMembership(
+  roomId: string,
+  slot: MultiplayerPlayerSlot,
+  name: string,
+) {
+  const memberships = readStoredRoomMemberships();
+  memberships[roomId] = {
+    slot,
+    name,
+    savedAt: new Date().toISOString(),
+  };
+  writeStoredRoomMemberships(memberships);
+}
+
+export function getStoredRoomMembership(roomId: string) {
+  const memberships = readStoredRoomMemberships();
+  return memberships[roomId] ?? null;
+}
+
+function getRoomReferenceTime(room: MultiplayerRoomRow) {
+  const reference = room.match_started_at ?? room.updated_at ?? room.created_at;
+  const timestamp = new Date(reference).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function isRoomExpired(room: MultiplayerRoomRow) {
+  const elapsed = Date.now() - getRoomReferenceTime(room);
+  const expirationMs =
+    room.status === 'finished' ? ROOM_FINISHED_EXPIRATION_MS : ROOM_ACTIVE_EXPIRATION_MS;
+
+  return elapsed > expirationMs;
+}
+
 function mapRoomRow(row: MultiplayerRoomRow): MultiplayerRoom {
   return {
     id: row.id,
@@ -69,6 +133,7 @@ function mapRoomRow(row: MultiplayerRoomRow): MultiplayerRoom {
     matchResult: row.match_result,
     matchStartedAt: row.match_started_at,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -80,7 +145,7 @@ async function fetchRoomRow(roomId: string) {
   const { data, error } = await supabase
     .from('multiplayer_rooms')
     .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
     )
     .eq('id', roomId)
     .single();
@@ -89,7 +154,13 @@ async function fetchRoomRow(roomId: string) {
     throw new Error(toMultiplayerErrorMessage(error, 'Room introuvable.'));
   }
 
-  return data as MultiplayerRoomRow;
+  const room = data as MultiplayerRoomRow;
+
+  if (isRoomExpired(room)) {
+    throw new Error('Cette room a expiré. Crée une nouvelle partie pour rejouer.');
+  }
+
+  return room;
 }
 
 function buildInitialDraftState(players: Player[]): MultiplayerDraftState {
@@ -144,7 +215,7 @@ export async function createMultiplayerRoom({
       match_started_at: null,
     })
     .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
     )
     .single();
 
@@ -184,7 +255,7 @@ export async function joinMultiplayerRoom(roomId: string, guestName: string) {
     })
     .eq('id', roomId)
     .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
     )
     .single();
 
@@ -192,7 +263,9 @@ export async function joinMultiplayerRoom(roomId: string, guestName: string) {
     throw new Error(toMultiplayerErrorMessage(error, 'Impossible de rejoindre la room.'));
   }
 
-  return mapRoomRow(data as MultiplayerRoomRow);
+  const joinedRoom = mapRoomRow(data as MultiplayerRoomRow);
+  storeRoomMembership(roomId, 'guest', guestName);
+  return joinedRoom;
 }
 
 export async function startMultiplayerDraft(roomId: string, players: Player[]) {
@@ -223,7 +296,7 @@ export async function startMultiplayerDraft(roomId: string, players: Player[]) {
     })
     .eq('id', roomId)
     .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
     )
     .single();
 
@@ -312,7 +385,7 @@ export async function makeMultiplayerPick(
     .eq('id', roomId)
     .eq('status', 'draft')
     .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
     )
     .single();
 
@@ -356,7 +429,7 @@ export async function confirmMultiplayerMatchStart(
       })
       .eq('id', roomId)
       .select(
-        'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+        'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
       )
       .single();
 
@@ -384,7 +457,7 @@ export async function confirmMultiplayerMatchStart(
     })
     .eq('id', roomId)
     .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at',
+      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
     )
     .single();
 
@@ -419,6 +492,20 @@ export async function heartbeatMultiplayerRoom(
   }
 }
 
+export function isPlayerConnectionStale(connectedAt: string | null) {
+  if (!connectedAt) {
+    return true;
+  }
+
+  const lastSeen = new Date(connectedAt).getTime();
+
+  if (Number.isNaN(lastSeen)) {
+    return true;
+  }
+
+  return Date.now() - lastSeen > PLAYER_STALE_MS;
+}
+
 export function getDisconnectedPlayerSlot(
   room: MultiplayerRoom,
   localSlot: MultiplayerPlayerSlot | null,
@@ -435,13 +522,7 @@ export function getDisconnectedPlayerSlot(
     return null;
   }
 
-  const lastSeen = new Date(otherConnectedAt).getTime();
-
-  if (Number.isNaN(lastSeen)) {
-    return null;
-  }
-
-  return Date.now() - lastSeen > PLAYER_STALE_MS ? otherSlot : null;
+  return isPlayerConnectionStale(otherConnectedAt) ? otherSlot : null;
 }
 
 export function subscribeToMultiplayerRoom(
