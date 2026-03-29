@@ -27,15 +27,21 @@ const keeperStats: PlayerStats = {
   pace: 42,
   shooting: 8,
   passing: 58,
+  dribbling: 24,
   defense: 84,
   physical: 76,
   goalkeeping: 86,
+  reflexes: 87,
+  handling: 84,
+  distribution: 72,
+  aerial: 80,
 };
 
 const defenderStats: PlayerStats = {
   pace: 66,
   shooting: 35,
   passing: 68,
+  dribbling: 58,
   defense: 84,
   physical: 82,
 };
@@ -44,6 +50,7 @@ const creatorMidStats: PlayerStats = {
   pace: 76,
   shooting: 74,
   passing: 87,
+  dribbling: 85,
   defense: 58,
   physical: 72,
 };
@@ -52,6 +59,7 @@ const holdingMidStats: PlayerStats = {
   pace: 70,
   shooting: 62,
   passing: 78,
+  dribbling: 72,
   defense: 82,
   physical: 80,
 };
@@ -60,6 +68,7 @@ const strikerStats: PlayerStats = {
   pace: 86,
   shooting: 90,
   passing: 70,
+  dribbling: 82,
   defense: 28,
   physical: 80,
 };
@@ -68,6 +77,7 @@ const wingerStats: PlayerStats = {
   pace: 88,
   shooting: 78,
   passing: 80,
+  dribbling: 88,
   defense: 36,
   physical: 68,
 };

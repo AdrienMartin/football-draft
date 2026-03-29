@@ -105,18 +105,26 @@ export function getStoredRoomMembership(roomId: string) {
   return memberships[roomId] ?? null;
 }
 
-function getRoomReferenceTime(room: MultiplayerRoomRow) {
-  const reference = room.match_started_at ?? room.updated_at ?? room.created_at;
+export function isMultiplayerRoomExpired(
+  room: Pick<MultiplayerRoom, 'status' | 'matchStartedAt' | 'updatedAt' | 'createdAt'>,
+) {
+  const reference = room.matchStartedAt ?? room.updatedAt ?? room.createdAt;
   const timestamp = new Date(reference).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
-function isRoomExpired(room: MultiplayerRoomRow) {
-  const elapsed = Date.now() - getRoomReferenceTime(room);
+  const safeTimestamp = Number.isNaN(timestamp) ? 0 : timestamp;
+  const elapsed = Date.now() - safeTimestamp;
   const expirationMs =
     room.status === 'finished' ? ROOM_FINISHED_EXPIRATION_MS : ROOM_ACTIVE_EXPIRATION_MS;
 
   return elapsed > expirationMs;
+}
+
+function isRoomExpired(room: MultiplayerRoomRow) {
+  return isMultiplayerRoomExpired({
+    status: room.status,
+    matchStartedAt: room.match_started_at,
+    updatedAt: room.updated_at,
+    createdAt: room.created_at,
+  });
 }
 
 function mapRoomRow(row: MultiplayerRoomRow): MultiplayerRoom {
@@ -139,7 +147,7 @@ function mapRoomRow(row: MultiplayerRoomRow): MultiplayerRoom {
 
 async function fetchRoomRow(roomId: string) {
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré.');
+    throw new Error("Supabase n'est pas configuré.");
   }
 
   const { data, error } = await supabase
@@ -194,7 +202,7 @@ export async function createMultiplayerRoom({
   rules,
 }: CreateMultiplayerRoomInput) {
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré.');
+    throw new Error("Supabase n'est pas configuré.");
   }
 
   const roomId = crypto.randomUUID();
@@ -236,7 +244,7 @@ export async function getMultiplayerRoom(roomId: string) {
 
 export async function joinMultiplayerRoom(roomId: string, guestName: string) {
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré.');
+    throw new Error("Supabase n'est pas configuré.");
   }
 
   const room = await getMultiplayerRoom(roomId);
@@ -270,7 +278,7 @@ export async function joinMultiplayerRoom(roomId: string, guestName: string) {
 
 export async function startMultiplayerDraft(roomId: string, players: Player[]) {
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré.');
+    throw new Error("Supabase n'est pas configuré.");
   }
 
   const room = await getMultiplayerRoom(roomId);
@@ -314,23 +322,23 @@ export async function makeMultiplayerPick(
   players: Player[],
 ) {
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré.');
+    throw new Error("Supabase n'est pas configuré.");
   }
 
   const room = await getMultiplayerRoom(roomId);
 
   if (room.status !== 'draft' || !room.draftState) {
-    throw new Error('La draft n’est pas active.');
+    throw new Error("La draft n'est pas active.");
   }
 
   const draftState = room.draftState;
 
   if (draftState.currentTurn !== slot) {
-    throw new Error('Ce n’est pas ton tour.');
+    throw new Error("Ce n'est pas ton tour.");
   }
 
   if (!draftState.availablePlayerIds.includes(playerId)) {
-    throw new Error('Ce joueur n’est plus disponible.');
+    throw new Error("Ce joueur n'est plus disponible.");
   }
 
   const playerMap = new Map(players.map((player) => [player.id, player]));
@@ -390,7 +398,7 @@ export async function makeMultiplayerPick(
     .single();
 
   if (error || !data) {
-    throw new Error(toMultiplayerErrorMessage(error, 'Impossible d’enregistrer ce choix.'));
+    throw new Error(toMultiplayerErrorMessage(error, "Impossible d'enregistrer ce choix."));
   }
 
   return mapRoomRow(data as MultiplayerRoomRow);
@@ -402,7 +410,7 @@ export async function confirmMultiplayerMatchStart(
   result: MatchResult,
 ) {
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré.');
+    throw new Error("Supabase n'est pas configuré.");
   }
 
   const room = await getMultiplayerRoom(roomId);
@@ -412,7 +420,7 @@ export async function confirmMultiplayerMatchStart(
   }
 
   if (room.status !== 'match') {
-    throw new Error('Le match n’est pas prêt à être lancé.');
+    throw new Error("Le match n'est pas prêt à être lancé.");
   }
 
   const currentReady = room.matchReady ?? { host: false, guest: false };
@@ -435,10 +443,7 @@ export async function confirmMultiplayerMatchStart(
 
     if (error || !data) {
       throw new Error(
-        toMultiplayerErrorMessage(
-          error,
-          'Impossible d’enregistrer ton accord pour lancer le match.',
-        ),
+        toMultiplayerErrorMessage(error, "Impossible d'enregistrer ton accord pour lancer le match."),
       );
     }
 
@@ -462,9 +467,7 @@ export async function confirmMultiplayerMatchStart(
     .single();
 
   if (error || !data) {
-    throw new Error(
-      toMultiplayerErrorMessage(error, 'Impossible de lancer la simulation du match.'),
-    );
+    throw new Error(toMultiplayerErrorMessage(error, 'Impossible de lancer la simulation du match.'));
   }
 
   return mapRoomRow(data as MultiplayerRoomRow);
@@ -475,7 +478,7 @@ export async function heartbeatMultiplayerRoom(
   slot: MultiplayerPlayerSlot,
 ) {
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré.');
+    throw new Error("Supabase n'est pas configuré.");
   }
 
   const payload =
@@ -487,7 +490,7 @@ export async function heartbeatMultiplayerRoom(
 
   if (error) {
     throw new Error(
-      toMultiplayerErrorMessage(error, 'Impossible de mettre à jour l’état de connexion.'),
+      toMultiplayerErrorMessage(error, "Impossible de mettre à jour l'état de connexion."),
     );
   }
 }

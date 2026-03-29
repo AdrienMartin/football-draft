@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { applyDraftRules, type DraftRules } from '../../lib/game/rules';
 import { isPlayerConnectionStale } from '../../lib/multiplayer/rooms';
 import { formatPlayerCount } from '../../lib/players/formatters';
@@ -45,7 +45,7 @@ async function copyTextWithFallback(text: string) {
 function formatRulesSummary(rules: DraftRules) {
   const parts = [
     rules.league ?? 'Tous les championnats',
-    rules.nationality ?? 'Toutes nationalités',
+    rules.nationality ?? 'Toutes les nationalités',
     rules.maxTeamValue ? `${rules.maxTeamValue} MEUR max` : 'Sans budget max',
   ];
 
@@ -67,6 +67,7 @@ function PlayerStatusCard({
     tone === 'emerald'
       ? 'border-emerald-400/20 bg-emerald-400/10'
       : 'border-sky-400/20 bg-sky-400/10';
+
   const statusLabel = !name
     ? 'Pas encore rejoint'
     : isPlayerConnectionStale(connectedAt)
@@ -80,6 +81,21 @@ function PlayerStatusCard({
       <p className="mt-1 text-sm text-slate-300">{statusLabel}</p>
     </div>
   );
+}
+
+function Notice({
+  tone,
+  children,
+}: {
+  tone: 'warning' | 'danger';
+  children: ReactNode;
+}) {
+  const classes =
+    tone === 'warning'
+      ? 'border-amber-400/30 bg-amber-400/10 text-amber-100'
+      : 'border-red-400/30 bg-red-400/10 text-red-100';
+
+  return <div className={`rounded-2xl border px-4 py-4 text-sm ${classes}`}>{children}</div>;
 }
 
 export function MultiplayerSetup({
@@ -156,15 +172,12 @@ export function MultiplayerSetup({
             Rejoindre la room
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-            Entre ton pseudo pour rejoindre la partie creee par {setup.room?.hostName ?? 'le host'}.
+            Entre ton pseudo pour rejoindre la partie créée par{' '}
+            {setup.room?.hostName ?? 'le host'}.
           </p>
         </div>
 
-        {setup.connectionIssue && (
-          <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
-            {setup.connectionIssue}
-          </div>
-        )}
+        {setup.connectionIssue && <div className="mt-6"><Notice tone="warning">{setup.connectionIssue}</Notice></div>}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <PlayerStatusCard
@@ -177,7 +190,7 @@ export function MultiplayerSetup({
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Regles de la draft</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Règles de la draft</p>
           <p className="mt-3 text-sm leading-6 text-slate-200">
             {setup.room ? formatRulesSummary(setup.room.rules) : ''}
           </p>
@@ -185,7 +198,7 @@ export function MultiplayerSetup({
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
           <p className="text-sm font-medium text-white">Ton pseudo</p>
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
             <input
               value={setup.guestName}
               onChange={(event) => onChangeGuestName(event.target.value)}
@@ -196,18 +209,14 @@ export function MultiplayerSetup({
               type="button"
               onClick={() => void onJoinRoom()}
               disabled={setup.isJoining || setup.guestName.trim().length === 0}
-              className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-auto"
+              className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 sm:w-auto sm:min-w-[180px]"
             >
               {setup.isJoining ? 'Connexion...' : 'Rejoindre la room'}
             </button>
           </div>
         </div>
 
-        {setup.error && (
-          <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
-            {setup.error}
-          </div>
-        )}
+        {setup.error && <div className="mt-6"><Notice tone="danger">{setup.error}</Notice></div>}
 
         <div className="mt-8">
           <button
@@ -243,15 +252,14 @@ export function MultiplayerSetup({
           </div>
         </div>
 
-        {setup.connectionIssue && (
-          <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
-            {setup.connectionIssue}
-          </div>
-        )}
+        {setup.connectionIssue && <div className="mt-6"><Notice tone="warning">{setup.connectionIssue}</Notice></div>}
 
         {setup.opponentDisconnected && (
-          <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
-            Le joueur adverse semble déconnecté. La room pourra reprendre automatiquement s'il revient.
+          <div className="mt-4">
+            <Notice tone="danger">
+              Le joueur adverse semble déconnecté. La room pourra reprendre automatiquement s il
+              revient.
+            </Notice>
           </div>
         )}
 
@@ -279,17 +287,17 @@ export function MultiplayerSetup({
 
         {setup.inviteLink && waitingForGuest && (
           <div className="mt-4 rounded-2xl border border-white/10 bg-gradient-to-r from-sky-400/10 to-emerald-400/10 p-5">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-medium text-white">Inviter un joueur</p>
                 <p className="mt-1 text-sm text-slate-300">
-                  Envoie ce lien à ton adversaire pour qu'il rejoigne la room.
+                  Envoie ce lien à ton adversaire pour qu il rejoigne la room.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 sm:w-auto"
               >
                 {copyState === 'copied'
                   ? 'Lien copié'
@@ -311,11 +319,7 @@ export function MultiplayerSetup({
           </div>
         )}
 
-        {setup.error && (
-          <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
-            {setup.error}
-          </div>
-        )}
+        {setup.error && <div className="mt-6"><Notice tone="danger">{setup.error}</Notice></div>}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {canHostStartDraft && (
@@ -341,13 +345,19 @@ export function MultiplayerSetup({
 
   return (
     <section className="mx-auto max-w-5xl rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 md:p-10">
-      <h2 className="text-2xl font-semibold text-white sm:text-3xl">Créer une draft 1v1</h2>
+      <div className="max-w-3xl">
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-sky-200/80">
+          Duel 1v1
+        </p>
+        <h2 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">
+          Créer une draft 1v1
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          Choisis les règles, crée la room, puis partage le lien d invitation à ton adversaire.
+        </p>
+      </div>
 
-      {setup.connectionIssue && (
-        <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
-          {setup.connectionIssue}
-        </div>
-      )}
+      {setup.connectionIssue && <div className="mt-6"><Notice tone="warning">{setup.connectionIssue}</Notice></div>}
 
       <div className="mt-8 space-y-4 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
         <label className="text-sm text-slate-300">
@@ -362,7 +372,7 @@ export function MultiplayerSetup({
           />
         </label>
 
-        <div className="grid items-end gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label className="text-sm text-slate-300">
             <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
               Championnat
@@ -399,7 +409,7 @@ export function MultiplayerSetup({
             </select>
           </label>
 
-          <label className="text-sm text-slate-300">
+          <label className="text-sm text-slate-300 md:col-span-2 xl:col-span-1">
             <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
               Valeur max par équipe
             </span>
@@ -428,11 +438,14 @@ export function MultiplayerSetup({
           </p>
         </div>
 
-        {setup.error && (
-          <div className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-4 text-sm text-red-100">
-            {setup.error}
-          </div>
+        {!isSupabaseConfigured && (
+          <Notice tone="warning">
+            Supabase n est pas configuré. Ajoute les variables d environnement avant de créer une
+            room.
+          </Notice>
         )}
+
+        {setup.error && <Notice tone="danger">{setup.error}</Notice>}
       </div>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">

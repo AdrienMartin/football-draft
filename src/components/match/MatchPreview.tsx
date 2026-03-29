@@ -20,12 +20,14 @@ export function MatchPreview({
 
   return (
     <section className="relative rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
-      <h2 className="text-2xl font-semibold text-white">Simulation du match</h2>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-        {isMultiplayer
-          ? 'Les équipes sont prêtes. Chaque joueur doit confirmer le lancement pour démarrer un déroulé synchronisé.'
-          : 'Les équipes sont prêtes. Lance la simulation pour voir le match se dérouler minute par minute.'}
-      </p>
+      <div className="max-w-3xl">
+        <h2 className="text-2xl font-semibold text-white">Simulation du match</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          {isMultiplayer
+            ? 'Les équipes sont prêtes. Les deux joueurs doivent confirmer le lancement pour démarrer un déroulé synchronisé.'
+            : 'Les équipes sont prêtes. Lance la simulation pour voir le match se dérouler minute par minute.'}
+        </p>
+      </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <TeamPitch title="Ton équipe" players={userTeam} side="left" />
@@ -38,13 +40,15 @@ export function MatchPreview({
           <p className="mt-2 text-lg font-semibold text-white">{userValue} MEUR</p>
           <p className="text-sm text-slate-400">contre {aiValue} MEUR</p>
         </div>
+
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Format</p>
           <p className="mt-2 text-lg font-semibold text-white">5 joueurs</p>
           <p className="text-sm text-slate-400">
-            {isMultiplayer ? 'match synchronisé' : 'match solo'}
+            {isMultiplayer ? 'duel synchronisé' : 'match solo'}
           </p>
         </div>
+
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Lancement</p>
           <p className="mt-2 text-lg font-semibold text-white">
