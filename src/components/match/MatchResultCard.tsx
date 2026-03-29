@@ -69,7 +69,7 @@ function getEventBadgeLabel(event: MatchEvent) {
     case 'chance':
       return 'Occasion';
     case 'save':
-      return 'Arrêt';
+      return 'Arret';
     case 'pressure':
       return 'Temps fort';
     case 'shot':
@@ -79,7 +79,7 @@ function getEventBadgeLabel(event: MatchEvent) {
     case 'cross':
       return 'Centre';
     case 'block':
-      return 'Contre déf.';
+      return 'Contre def.';
     default:
       return event.type;
   }
@@ -177,16 +177,6 @@ function buildVisibleStats(result: MatchResult, visibleEvents: MatchEvent[]) {
         (event) => event.type === 'save' || event.type === 'goal',
       ).length,
       xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
-      bigChances: visibleEvents.filter(
-        (event) => event.team === 'user' && event.type === 'chance' && (event.xg ?? 0) >= 0.28,
-      ).length,
-      saves: visibleEvents.filter((event) => event.team === 'user' && event.type === 'save').length,
-      blocks: visibleEvents.filter((event) => event.team === 'user' && event.type === 'block').length,
-      dangerousAttacks: visibleEvents.filter(
-        (event) =>
-          event.team === 'user' &&
-          (event.type === 'chance' || event.type === 'counter' || event.type === 'cross'),
-      ).length,
     },
     ai: {
       possession: result.aiStats.possession,
@@ -195,16 +185,6 @@ function buildVisibleStats(result: MatchResult, visibleEvents: MatchEvent[]) {
         (event) => event.type === 'save' || event.type === 'goal',
       ).length,
       xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
-      bigChances: visibleEvents.filter(
-        (event) => event.team === 'ai' && event.type === 'chance' && (event.xg ?? 0) >= 0.28,
-      ).length,
-      saves: visibleEvents.filter((event) => event.team === 'ai' && event.type === 'save').length,
-      blocks: visibleEvents.filter((event) => event.team === 'ai' && event.type === 'block').length,
-      dangerousAttacks: visibleEvents.filter(
-        (event) =>
-          event.team === 'ai' &&
-          (event.type === 'chance' || event.type === 'counter' || event.type === 'cross'),
-      ).length,
     },
   };
 }
@@ -228,11 +208,8 @@ function MatchStatsTable({
       user: `${stats.user.shotsOnTarget}`,
       ai: `${stats.ai.shotsOnTarget}`,
     },
-    { label: 'Arrêts', user: `${stats.user.saves}`, ai: `${stats.ai.saves}` },
-    { label: 'Contres déf.', user: `${stats.user.blocks}`, ai: `${stats.ai.blocks}` },
     { label: 'xG', user: stats.user.xg, ai: stats.ai.xg },
   ];
-  rows.splice(3, 2);
 
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
@@ -463,9 +440,7 @@ export function MatchResultCard({
                         {adaptOpponentText(event.text, opponentLabel)}
                       </p>
                       {event.assister ? (
-                        <p className="text-xs text-slate-300">
-                          Passe décisive : {event.assister}
-                        </p>
+                        <p className="text-xs text-slate-300">Passe décisive : {event.assister}</p>
                       ) : null}
                     </div>
                   )}

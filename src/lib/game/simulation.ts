@@ -42,10 +42,6 @@ export type MatchSideStats = {
   shots: number;
   shotsOnTarget: number;
   xg: number;
-  bigChances: number;
-  saves: number;
-  blocks: number;
-  dangerousAttacks: number;
 };
 
 export type MatchResult = {
@@ -617,16 +613,6 @@ function buildMatchStats(
         (event) => event.type === 'save' || event.type === 'goal',
       ).length,
       xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
-      bigChances: events.filter(
-        (event) => event.team === 'user' && event.type === 'chance' && (event.xg ?? 0) >= 0.28,
-      ).length,
-      saves: events.filter((event) => event.team === 'user' && event.type === 'save').length,
-      blocks: events.filter((event) => event.team === 'user' && event.type === 'block').length,
-      dangerousAttacks: events.filter(
-        (event) =>
-          event.team === 'user' &&
-          (event.type === 'chance' || event.type === 'counter' || event.type === 'cross'),
-      ).length,
     },
     aiStats: {
       possession: aiPossession,
@@ -635,16 +621,6 @@ function buildMatchStats(
         (event) => event.type === 'save' || event.type === 'goal',
       ).length,
       xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
-      bigChances: events.filter(
-        (event) => event.team === 'ai' && event.type === 'chance' && (event.xg ?? 0) >= 0.28,
-      ).length,
-      saves: events.filter((event) => event.team === 'ai' && event.type === 'save').length,
-      blocks: events.filter((event) => event.team === 'ai' && event.type === 'block').length,
-      dangerousAttacks: events.filter(
-        (event) =>
-          event.team === 'ai' &&
-          (event.type === 'chance' || event.type === 'counter' || event.type === 'cross'),
-      ).length,
     },
   };
 }
