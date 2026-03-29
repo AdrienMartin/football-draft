@@ -291,6 +291,7 @@ export function MatchResultCard({
   }, [result, startedAt]);
 
   const visibleEvents = result.events.filter((event) => event.minute <= minute);
+  const orderedVisibleEvents = [...visibleEvents].reverse();
   const liveScore = visibleEvents.reduce(
     (_score, event) => ({
       user: event.userScore,
@@ -328,30 +329,30 @@ export function MatchResultCard({
 
       <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr]">
         <div
-          className={`rounded-2xl border border-white/10 bg-slate-950/40 p-6 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
+          className={`rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
         >
           <p className="text-sm text-slate-400">Ton équipe</p>
-          <p className="mt-2 text-5xl font-bold text-white">{liveScore.user}</p>
-          <div className="mt-3 min-h-10 text-sm text-slate-300">
+          <p className="mt-1 text-4xl font-bold text-white">{liveScore.user}</p>
+          <div className="mt-2 min-h-8 text-sm text-slate-300">
             {scorers.user.length > 0 ? <p>{scorers.user.join(', ')}</p> : null}
           </div>
         </div>
 
-        <div className="flex min-w-28 flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-6">
+        <div className="flex min-w-24 flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
             {!hasStarted ? 'Départ' : isHalfTime ? 'Pause' : 'Chrono'}
           </p>
-          <p className="mt-2 text-4xl font-bold text-white">
+          <p className="mt-1 text-3xl font-bold text-white">
             {!hasStarted ? 'Prêt' : isHalfTime ? 'Mi-temps' : `${minute}'`}
           </p>
         </div>
 
         <div
-          className={`rounded-2xl border border-white/10 bg-slate-950/40 p-6 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
+          className={`rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
         >
           <p className="text-sm text-slate-400">{opponentTextParts.cardLabel}</p>
-          <p className="mt-2 text-5xl font-bold text-white">{liveScore.ai}</p>
-          <div className="mt-3 min-h-10 text-sm text-slate-300">
+          <p className="mt-1 text-4xl font-bold text-white">{liveScore.ai}</p>
+          <div className="mt-2 min-h-8 text-sm text-slate-300">
             {scorers.ai.length > 0 ? <p>{scorers.ai.join(', ')}</p> : null}
           </div>
         </div>
@@ -369,26 +370,6 @@ export function MatchResultCard({
       </div>
 
       <div className="mt-6 space-y-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Ton équipe</p>
-            <p className="mt-2 text-sm text-slate-300">
-              Général {result.userSummary.overall} · Attaque {result.userSummary.attack} · Milieu{' '}
-              {result.userSummary.midfield} · Défense {result.userSummary.defense}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-              {opponentTextParts.cardLabel}
-            </p>
-            <p className="mt-2 text-sm text-slate-300">
-              Général {result.aiSummary.overall} · Attaque {result.aiSummary.attack} · Milieu{' '}
-              {result.aiSummary.midfield} · Défense {result.aiSummary.defense}
-            </p>
-          </div>
-        </div>
-
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-white">Déroulé du match</p>
@@ -408,7 +389,7 @@ export function MatchResultCard({
               </p>
             )}
 
-            {visibleEvents.map((event) => {
+            {orderedVisibleEvents.map((event) => {
               const styles = getEventStyle(event);
               const isGoal = event.type === 'goal';
 

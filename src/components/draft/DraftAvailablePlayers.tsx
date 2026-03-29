@@ -92,12 +92,24 @@ export function DraftAvailablePlayers({
           <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
             Recherche
           </span>
-          <input
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            placeholder="Nom du joueur"
-            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-          />
+          <div className="relative">
+            <input
+              value={searchQuery}
+              onChange={(event) => onSearchQueryChange(event.target.value)}
+              placeholder="Nom du joueur"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 pr-11 text-sm text-white outline-none"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => onSearchQueryChange('')}
+                aria-label="Réinitialiser la recherche"
+                className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </label>
 
         <label className="text-sm text-slate-300">

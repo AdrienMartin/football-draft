@@ -15,9 +15,14 @@ export type PlayerStats = {
   pace: number;
   shooting: number;
   passing: number;
+  dribbling: number;
   defense: number;
   physical: number;
   goalkeeping?: number;
+  reflexes?: number;
+  handling?: number;
+  distribution?: number;
+  aerial?: number;
 };
 
 export type Player = {
@@ -30,5 +35,7 @@ export type Player = {
   position: PlayerPosition;
   rating: number;
   value: number;
+  marketValueEur?: number;
+  transfermarktUrl?: string | null;
   stats: PlayerStats;
 };

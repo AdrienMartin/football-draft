@@ -33,10 +33,7 @@ export function TeamPitch({ title, players, side, compact = false }: TeamPitchPr
             const rowPlayers = players.filter((player) => getPlayerRole(player.position) === role);
 
             return (
-              <div key={role} className="space-y-2">
-                <p className="text-center text-[10px] font-semibold uppercase tracking-[0.25em] text-emerald-100/75">
-                  {role}
-                </p>
+              <div key={role}>
                 <div className="flex min-h-20 items-center justify-center gap-3">
                   {rowPlayers.map((player) => (
                     <article

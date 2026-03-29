@@ -2,11 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const cwd = process.cwd();
-const inputPath =
-  process.argv[2] ??
-  path.join(cwd, 'public', 'data', 'players_data_light-2025_2026.csv');
+const fbrefPath =
+  process.argv[2] ?? path.join(cwd, 'public', 'data', 'players_fbref.csv');
+const sofascorePath =
+  process.argv[3] ?? path.join(cwd, 'public', 'data', 'players_sofascore.csv');
+const transfermarktPath =
+  process.argv[4] ?? path.join(cwd, 'public', 'data', 'players_transfermarkt.csv');
 const outputPath =
-  process.argv[3] ?? path.join(cwd, 'public', 'data', 'players.json');
+  process.argv[5] ?? path.join(cwd, 'public', 'data', 'players.json');
 
 function parseCsv(text) {
   const rows = [];
@@ -70,12 +73,21 @@ function toNumber(value) {
     return 0;
   }
 
-  const normalized = Number.parseFloat(String(value).replace('%', ''));
+  const normalized = Number.parseFloat(String(value).replace('%', '').replace(',', '.'));
   return Number.isFinite(normalized) ? normalized : 0;
 }
 
 function clamp(value, min = 1, max = 99) {
   return Math.round(Math.max(min, Math.min(max, value)));
+}
+
+function normalizeText(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 function normalize(value, min, max) {
@@ -86,83 +98,400 @@ function normalize(value, min, max) {
   return ((value - min) / (max - min)) * 100;
 }
 
+function similarity(left, right) {
+  if (!left || !right) {
+    return 0;
+  }
+
+  if (left === right) {
+    return 1;
+  }
+
+  const leftTokens = new Set(left.split(' ').filter(Boolean));
+  const rightTokens = new Set(right.split(' ').filter(Boolean));
+  let overlap = 0;
+
+  leftTokens.forEach((token) => {
+    if (rightTokens.has(token)) {
+      overlap += 1;
+    }
+  });
+
+  return overlap / Math.max(leftTokens.size, rightTokens.size, 1);
+}
+
 function computeAvailability(row) {
   return (
-    toNumber(row.MP) * 0.6 +
-    toNumber(row.Starts) * 1.2 +
-    toNumber(row['90s']) * 1.6 +
-    toNumber(row.Min) / 180
+    toNumber(row.MP) * 0.5 +
+    toNumber(row.Starts) * 1.1 +
+    toNumber(row['90s']) * 1.4 +
+    toNumber(row.Min) / 220
   );
 }
 
-function computeRanges(rows) {
-  const metrics = {
-    shotThreat: [],
-    playmaking: [],
-    defending: [],
-    mobility: [],
-    physical: [],
-    availability: [],
-    goalkeeping: [],
-  };
+function computeStatConfidence(row) {
+  const minutes = toNumber(row.Min);
+  const starts = toNumber(row.Starts);
+  const matches = toNumber(row.MP);
+  const fullMatches = toNumber(row['90s']);
+
+  const minuteShare = Math.min(minutes / 2600, 1);
+  const startShare = Math.min(starts / 28, 1);
+  const matchShare = Math.min(matches / 32, 1);
+  const fullMatchShare = Math.min(fullMatches / 26, 1);
+
+  return Math.max(
+    0.18,
+    Math.min(1, minuteShare * 0.48 + startShare * 0.24 + matchShare * 0.14 + fullMatchShare * 0.14),
+  );
+}
+
+function getFbrefLeagueName(competition) {
+  const normalized = normalizeText(competition);
+
+  if (normalized.includes('premier league')) {
+    return 'Premier League';
+  }
+  if (normalized.includes('la liga')) {
+    return 'LaLiga';
+  }
+  if (normalized.includes('serie a')) {
+    return 'Serie A';
+  }
+  if (normalized.includes('bundesliga')) {
+    return 'Bundesliga';
+  }
+  if (normalized.includes('ligue 1')) {
+    return 'Ligue 1';
+  }
+
+  return competition;
+}
+
+function parseNation(raw) {
+  if (!raw) {
+    return 'Unknown';
+  }
+
+  const parts = raw.trim().split(/\s+/);
+  return parts[parts.length - 1] || raw.trim();
+}
+
+function applyNationalityOverrides(name, nationality) {
+  const normalizedName = normalizeText(name);
+
+  if (normalizedName === 'yael trepy' || normalizedName === 'nathan mbala') {
+    return 'FRA';
+  }
+
+  if (normalizedName === 'andres antanon') {
+    return 'ESP';
+  }
+
+  return nationality;
+}
+
+function mapPosition(pos, transfermarktEntry) {
+  const normalizedPos = normalizeText(pos);
+  const subPosition = normalizeText(transfermarktEntry?.subPosition ?? '');
+
+  if (normalizedPos.includes('gk') || subPosition.includes('goalkeeper')) {
+    return 'GK';
+  }
+
+  if (subPosition.includes('centre back') || subPosition.includes('center back')) {
+    return 'CB';
+  }
+  if (
+    subPosition.includes('right back') ||
+    subPosition.includes('left back') ||
+    subPosition.includes('full back') ||
+    subPosition.includes('wing back')
+  ) {
+    return 'RB';
+  }
+  if (subPosition.includes('defensive midfield')) {
+    return 'CDM';
+  }
+  if (subPosition.includes('central midfield')) {
+    return 'CM';
+  }
+  if (subPosition.includes('attacking midfield') || subPosition.includes('second striker')) {
+    return 'CAM';
+  }
+  if (subPosition.includes('right winger')) {
+    return 'RW';
+  }
+  if (subPosition.includes('left winger')) {
+    return 'LW';
+  }
+  if (subPosition.includes('centre forward') || subPosition.includes('center forward')) {
+    return 'ST';
+  }
+
+  const parts = pos
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.includes('DF')) {
+    return 'CB';
+  }
+  if (parts.includes('MF') && parts.includes('FW')) {
+    return 'CAM';
+  }
+  if (parts.includes('MF')) {
+    return 'CM';
+  }
+  if (parts.includes('FW')) {
+    return 'ST';
+  }
+
+  return 'CM';
+}
+
+function buildTransfermarktIndex(rows) {
+  const index = new Map();
+
+  rows
+    .filter((row) => toNumber(row.market_value_in_eur) > 0 && toNumber(row.last_season) >= 2024)
+    .forEach((row) => {
+      const entry = {
+        playerId: row.player_id,
+        name: row.name,
+        club: row.current_club_name,
+        nationality: row.country_of_citizenship,
+        marketValueEur: Math.max(0, Math.round(toNumber(row.market_value_in_eur))),
+        highestMarketValueEur: Math.max(0, Math.round(toNumber(row.highest_market_value_in_eur))),
+        subPosition: row.sub_position,
+        position: row.position,
+        dateOfBirth: row.date_of_birth,
+        url: row.url || null,
+        clubKey: normalizeText(row.current_club_name),
+      };
+      const nameKey = normalizeText(row.name);
+      const clubKey = normalizeText(row.current_club_name);
+      const compositeKey = `${nameKey}::${clubKey}`;
+      const entries = index.get(nameKey) ?? [];
+
+      entries.push(entry);
+      index.set(nameKey, entries);
+      index.set(compositeKey, [entry]);
+    });
+
+  return index;
+}
+
+function findTransfermarktEntry(row, transfermarktIndex) {
+  const nameKey = normalizeText(row.Player);
+  const clubKey = normalizeText(row.Squad);
+  const compositeKey = `${nameKey}::${clubKey}`;
+  const exactMatch = transfermarktIndex.get(compositeKey);
+
+  if (exactMatch?.[0]) {
+    return exactMatch[0];
+  }
+
+  const candidates = transfermarktIndex.get(nameKey) ?? [];
+
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+
+  if (candidates.length > 1) {
+    const bestClubMatch = candidates.find((candidate) => similarity(clubKey, candidate.clubKey) >= 0.4);
+    if (bestClubMatch) {
+      return bestClubMatch;
+    }
+    return candidates[0];
+  }
+
+  return null;
+}
+
+function buildSofascoreIndex(rows) {
+  const byLeague = new Map();
 
   rows.forEach((row) => {
-    const gls = toNumber(row.Gls);
-    const sot = toNumber(row.SoT);
-    const sh = toNumber(row.Sh);
-    const ast = toNumber(row.Ast);
-    const tklw = toNumber(row.TklW);
-    const interceptions = toNumber(row.Int);
-    const crosses = toNumber(row.Crs);
-    const foulsDrawn = toNumber(row.Fld);
-    const foulsCommitted = toNumber(row.Fls);
-    const savePct = toNumber(row['Save%']);
-    const saves = toNumber(row.Saves);
-    const savesAgainst = toNumber(row.SoTA);
-    const goalsAgainstPer90 = toNumber(row.GA90);
-    const csPct = toNumber(row['CS%']);
-    const cleanSheets = toNumber(row.CS);
-    const pkSaves = toNumber(row.PKsv);
-    const availability = computeAvailability(row);
+    const league = row.league || 'Unknown';
+    const leagueRows = byLeague.get(league) ?? [];
+    leagueRows.push(row);
+    byLeague.set(league, leagueRows);
+  });
 
-    metrics.shotThreat.push(
-      gls * 16 +
-        ast * 7 +
-        toNumber(row['G+A']) * 5 +
-        sh * 0.9 +
-        sot * 2.4 +
-        toNumber(row['Sh/90']) * 12 +
-        toNumber(row['SoT/90']) * 18 +
-        toNumber(row['G/Sh']) * 40 +
-        toNumber(row['G/SoT']) * 22,
+  return byLeague;
+}
+
+function scoreSofascoreCandidate(fbrefRow, sofascoreRow, isGoalkeeper) {
+  const scores = [
+    { weight: 0.24, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.Min) - toNumber(sofascoreRow.minutes_played)) / 900, 1) },
+    { weight: 0.1, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.MP) - toNumber(sofascoreRow.appearances)) / 12, 1) },
+    { weight: 0.08, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.Starts) - toNumber(sofascoreRow.matches_started)) / 10, 1) },
+    { weight: 0.12, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.Gls) - toNumber(sofascoreRow.goals)) / 10, 1) },
+    { weight: 0.1, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.Ast) - toNumber(sofascoreRow.assists)) / 8, 1) },
+    { weight: 0.08, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.Sh) - toNumber(sofascoreRow.total_shots)) / 40, 1) },
+    { weight: 0.08, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.SoT) - toNumber(sofascoreRow.shots_on_target)) / 20, 1) },
+    { weight: 0.05, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.CrdY) - toNumber(sofascoreRow.yellow_cards)) / 6, 1) },
+    { weight: 0.03, value: 1 - Math.min(Math.abs(toNumber(fbrefRow.CrdR) - toNumber(sofascoreRow.red_cards)) / 2, 1) },
+  ];
+
+  if (isGoalkeeper) {
+    scores.push({
+      weight: 0.12,
+      value: 1 - Math.min(Math.abs(toNumber(fbrefRow.Saves) - toNumber(sofascoreRow.saves)) / 40, 1),
+    });
+  } else {
+    scores.push({
+      weight: 0.06,
+      value: 1 - Math.min(Math.abs(toNumber(fbrefRow.TklW) - toNumber(sofascoreRow.tackles)) / 30, 1),
+    });
+    scores.push({
+      weight: 0.04,
+      value: 1 - Math.min(Math.abs(toNumber(fbrefRow.Int) - toNumber(sofascoreRow.interceptions)) / 20, 1),
+    });
+  }
+
+  const totalWeight = scores.reduce((sum, score) => sum + score.weight, 0);
+  const weightedScore = scores.reduce((sum, score) => sum + score.weight * Math.max(0, score.value), 0);
+
+  return weightedScore / totalWeight;
+}
+
+function matchSofascoreRows(fbrefRows, sofascoreByLeague) {
+  const candidatePairs = [];
+
+  fbrefRows.forEach((row, index) => {
+    const league = getFbrefLeagueName(row.Comp);
+    const leagueRows = sofascoreByLeague.get(league) ?? [];
+    const isGoalkeeper = normalizeText(row.Pos).includes('gk');
+
+    leagueRows.forEach((candidate) => {
+      const score = scoreSofascoreCandidate(row, candidate, isGoalkeeper);
+
+      if (score >= 0.78) {
+        candidatePairs.push({
+          fbrefIndex: index,
+          sofascoreId: candidate.player_id,
+          score,
+          row: candidate,
+        });
+      }
+    });
+  });
+
+  candidatePairs.sort((left, right) => right.score - left.score);
+
+  const assignedFbref = new Set();
+  const assignedSofascore = new Set();
+  const matches = new Map();
+
+  candidatePairs.forEach((pair) => {
+    if (assignedFbref.has(pair.fbrefIndex) || assignedSofascore.has(pair.sofascoreId)) {
+      return;
+    }
+
+    assignedFbref.add(pair.fbrefIndex);
+    assignedSofascore.add(pair.sofascoreId);
+    matches.set(pair.fbrefIndex, pair.row);
+  });
+
+  return matches;
+}
+
+function computeRanges(rows, sofascoreMatches, transfermarktEntries) {
+  const metrics = {
+    shooting: [],
+    passing: [],
+    dribbling: [],
+    defense: [],
+    pace: [],
+    physical: [],
+    goalkeeping: [],
+    handling: [],
+    reflexes: [],
+    distribution: [],
+    aerial: [],
+  };
+
+  rows.forEach((row, index) => {
+    const sofascore = sofascoreMatches.get(index);
+    const transfermarkt = transfermarktEntries.get(index);
+    const rating = toNumber(sofascore?.rating);
+    const shots = toNumber(sofascore?.total_shots) || toNumber(row.Sh);
+    const shotsOnTarget = toNumber(sofascore?.shots_on_target) || toNumber(row.SoT);
+    const tackles = toNumber(sofascore?.tackles) || toNumber(row.TklW);
+    const interceptions = toNumber(sofascore?.interceptions) || toNumber(row.Int);
+    const saves = toNumber(sofascore?.saves) || toNumber(row.Saves);
+    const xg = toNumber(sofascore?.expected_goals);
+    const xa = toNumber(sofascore?.expected_assists);
+    const availability = computeAvailability(row);
+    const marketValue = Math.max(0, Math.log2((transfermarkt?.marketValueEur ?? 0) / 1_000_000 + 1));
+    const subPosition = normalizeText(transfermarkt?.subPosition ?? '');
+    const wingerBias = subPosition.includes('winger') ? 8 : 0;
+    const creatorBias = subPosition.includes('attacking midfield') ? 6 : 0;
+
+    metrics.shooting.push(
+      toNumber(row.Gls) * 15 +
+        xg * 9 +
+        shots * 0.7 +
+        shotsOnTarget * 2.2 +
+        toNumber(row['Sh/90']) * 8 +
+        marketValue * 2,
     );
-    metrics.playmaking.push(
-      ast * 18 + toNumber(row['G+A']) * 4 + crosses * 1.4 + foulsDrawn * 0.8,
+    metrics.passing.push(
+      toNumber(row.Ast) * 14 +
+        xa * 10 +
+        toNumber(row.Crs) * 0.9 +
+        rating * 5 +
+        creatorBias,
     );
-    metrics.defending.push(
-      tklw * 2.7 + interceptions * 2.4 + toNumber(row.OG) * -8 + foulsCommitted * -0.4,
+    metrics.dribbling.push(
+      shotsOnTarget * 1.2 +
+        toNumber(row.Fld) * 1.5 +
+        toNumber(row.Crs) * 0.4 +
+        rating * 7 +
+        wingerBias +
+        creatorBias +
+        marketValue * 2.5,
     );
-    metrics.physical.push(
-      tklw * 1.8 +
-        interceptions * 1.2 +
-        foulsDrawn * 1.6 +
-        crosses * 0.3 -
-        toNumber(row.CrdY) * 1.8 -
+    metrics.defense.push(
+      tackles * 2.1 +
+        interceptions * 2.2 +
+        toNumber(row.TklW) * 1.2 +
+        toNumber(row.Int) * 1.3 -
         toNumber(row.CrdR) * 6,
     );
-    metrics.mobility.push(
-      toNumber(row['Sh/90']) * 16 + toNumber(row['SoT/90']) * 10 + foulsDrawn * 0.9 + crosses * 0.45,
+    metrics.pace.push(
+      toNumber(row['Sh/90']) * 10 +
+        shotsOnTarget * 0.8 +
+        toNumber(row.Fld) * 1.1 +
+        rating * 4 +
+        wingerBias +
+        Math.max(0, 28 - toNumber(row.Age)) * 0.6,
     );
-    metrics.availability.push(availability);
+    metrics.physical.push(
+      tackles * 1.4 +
+        interceptions * 1 +
+        availability * 0.9 +
+        toNumber(row.Fld) * 1.2 +
+        Math.max(0, toNumber(transfermarkt?.heightInCm) - 175) * 0.15,
+    );
     metrics.goalkeeping.push(
-      savePct * 0.7 +
-        saves * 1.2 +
-        savesAgainst * 0.35 +
-        csPct * 0.35 +
-        cleanSheets * 0.8 +
-        pkSaves * 6 -
-        goalsAgainstPer90 * 9 +
-        availability * 0.22,
+      toNumber(row['Save%']) * 0.8 +
+        saves * 1.3 +
+        toNumber(row.CS) * 0.8 -
+        toNumber(row.GA90) * 8 +
+        rating * 4,
+    );
+    metrics.handling.push(
+      toNumber(row['Save%']) * 0.55 + toNumber(row.CS) * 0.5 - toNumber(row.GA90) * 4,
+    );
+    metrics.reflexes.push(saves * 1.5 + toNumber(row['Save%']) * 0.45 + rating * 3.5);
+    metrics.distribution.push(rating * 6 + toNumber(row.Crs) * 0.25 + availability * 0.4);
+    metrics.aerial.push(
+      toNumber(row.CS) * 0.6 +
+        Math.max(0, toNumber(transfermarkt?.heightInCm) - 180) * 0.35 +
+        rating * 4,
     );
   });
 
@@ -177,347 +506,579 @@ function computeRanges(rows) {
   );
 }
 
-function parseNation(raw) {
-  if (!raw) {
-    return 'Unknown';
-  }
+function buildOutfieldStats(row, sofascore, transfermarkt, ranges, position) {
+  const shootingRaw =
+    toNumber(row.Gls) * 15 +
+    toNumber(sofascore?.expected_goals) * 9 +
+    (toNumber(sofascore?.total_shots) || toNumber(row.Sh)) * 0.7 +
+    (toNumber(sofascore?.shots_on_target) || toNumber(row.SoT)) * 2.2 +
+    toNumber(row['Sh/90']) * 8 +
+    Math.log2((transfermarkt?.marketValueEur ?? 0) / 1_000_000 + 1) * 2;
+  const passingRaw =
+    toNumber(row.Ast) * 14 +
+    toNumber(sofascore?.expected_assists) * 10 +
+    toNumber(row.Crs) * 0.9 +
+    toNumber(sofascore?.rating) * 5;
+  const dribblingRaw =
+    (toNumber(sofascore?.shots_on_target) || toNumber(row.SoT)) * 1.2 +
+    toNumber(row.Fld) * 1.5 +
+    toNumber(row.Crs) * 0.4 +
+    toNumber(sofascore?.rating) * 7 +
+    Math.log2((transfermarkt?.marketValueEur ?? 0) / 1_000_000 + 1) * 2.5;
+  const defenseRaw =
+    (toNumber(sofascore?.tackles) || toNumber(row.TklW)) * 2.1 +
+    (toNumber(sofascore?.interceptions) || toNumber(row.Int)) * 2.2 +
+    toNumber(row.TklW) * 1.2 +
+    toNumber(row.Int) * 1.3 -
+    toNumber(row.CrdR) * 6;
+  const paceRaw =
+    toNumber(row['Sh/90']) * 10 +
+    (toNumber(sofascore?.shots_on_target) || toNumber(row.SoT)) * 0.8 +
+    toNumber(row.Fld) * 1.1 +
+    toNumber(sofascore?.rating) * 4 +
+    Math.max(0, 28 - toNumber(row.Age)) * 0.6;
+  const physicalRaw =
+    (toNumber(sofascore?.tackles) || toNumber(row.TklW)) * 1.4 +
+    (toNumber(sofascore?.interceptions) || toNumber(row.Int)) * 1 +
+    computeAvailability(row) * 0.9 +
+    toNumber(row.Fld) * 1.2 +
+    Math.max(0, toNumber(transfermarkt?.heightInCm) - 175) * 0.15;
 
-  const parts = raw.trim().split(/\s+/);
-  return parts[parts.length - 1] || raw.trim();
-}
-
-function mapPosition(pos, row) {
-  const parts = pos
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const isMixedAttacker = parts.includes('FW') && parts.includes('MF');
-  const shootingOutput = toNumber(row.Gls) * 2 + toNumber(row.SoT) + toNumber(row['G+A']);
-  const creativity = toNumber(row.Ast) * 4 + toNumber(row.Crs) + toNumber(row.Fld) * 0.5;
-  const directness = toNumber(row['Sh/90']) * 14 + toNumber(row['SoT/90']) * 12;
-  const defensiveWork = toNumber(row.TklW) + toNumber(row.Int);
-
-  if (pos.includes('GK')) {
-    return 'GK';
-  }
-
-  if (pos.includes('DF')) {
-    const crossingLoad = toNumber(row.Crs);
-    const defenseLoad = toNumber(row.TklW) + toNumber(row.Int);
-    if (crossingLoad > defenseLoad * 0.45) {
-      return 'RB';
-    }
-    return 'CB';
-  }
-
-  if (isMixedAttacker) {
-    if (creativity > shootingOutput * 1.1 && defensiveWork > shootingOutput * 0.35) {
-      return 'CAM';
-    }
-
-    if (creativity > shootingOutput * 1.15 && directness > toNumber(row.Sh) * 0.9) {
-      return 'LW';
-    }
-
-    return 'CF';
-  }
-
-  if (pos.includes('MF')) {
-    const defenseLoad = defensiveWork;
-    const midfieldCreativity = toNumber(row.Ast) * 3 + toNumber(row.Crs) + toNumber(row.Fld) * 0.5;
-
-    if (defenseLoad > midfieldCreativity * 0.85) {
-      return 'CDM';
-    }
-
-    if (midfieldCreativity > defenseLoad * 1.15) {
-      return 'CAM';
-    }
-
-    return 'CM';
-  }
-
-  if (pos.includes('FW')) {
-    if (creativity > shootingOutput * 1.05) {
-      return directness > toNumber(row.Sh) * 0.9 ? 'LW' : 'CF';
-    }
-
-    return 'ST';
-  }
-
-  return 'CM';
-}
-
-function applyPositionBias(position, baseStats) {
-  const stats = { ...baseStats };
+  const stats = {
+    pace: clamp(48 + normalize(paceRaw, ranges.pace.min, ranges.pace.max) * 0.4),
+    shooting: clamp(48 + normalize(shootingRaw, ranges.shooting.min, ranges.shooting.max) * 0.45),
+    passing: clamp(48 + normalize(passingRaw, ranges.passing.min, ranges.passing.max) * 0.43),
+    dribbling: clamp(48 + normalize(dribblingRaw, ranges.dribbling.min, ranges.dribbling.max) * 0.44),
+    defense: clamp(46 + normalize(defenseRaw, ranges.defense.min, ranges.defense.max) * 0.45),
+    physical: clamp(48 + normalize(physicalRaw, ranges.physical.min, ranges.physical.max) * 0.38),
+    goalkeeping: 0,
+    reflexes: 0,
+    handling: 0,
+    distribution: 0,
+    aerial: 0,
+  };
 
   if (position === 'CB') {
-    stats.defense = clamp(stats.defense * 1.18);
-    stats.physical = clamp(stats.physical * 1.1);
-    stats.shooting = clamp(stats.shooting * 0.55);
-  } else if (position === 'RB' || position === 'LB') {
+    stats.defense = clamp(stats.defense * 1.15);
+    stats.physical = clamp(stats.physical * 1.08);
+    stats.dribbling = clamp(stats.dribbling * 0.72);
+    stats.shooting = clamp(stats.shooting * 0.58);
+  } else if (position === 'RB') {
     stats.pace = clamp(stats.pace * 1.1);
-    stats.passing = clamp(stats.passing * 1.06);
-    stats.defense = clamp(stats.defense * 1.02);
-  } else if (position === 'CDM') {
-    stats.defense = clamp(stats.defense * 1.12);
     stats.passing = clamp(stats.passing * 1.05);
-    stats.shooting = clamp(stats.shooting * 0.8);
+    stats.dribbling = clamp(stats.dribbling * 1.04);
+  } else if (position === 'CDM') {
+    stats.defense = clamp(stats.defense * 1.1);
+    stats.passing = clamp(stats.passing * 1.04);
+    stats.dribbling = clamp(stats.dribbling * 0.9);
+    stats.shooting = clamp(stats.shooting * 0.78);
   } else if (position === 'CM') {
-    stats.passing = clamp(stats.passing * 1.08);
-    stats.physical = clamp(stats.physical * 1.04);
+    stats.passing = clamp(stats.passing * 1.04);
+    stats.dribbling = clamp(stats.dribbling * 1.02);
   } else if (position === 'CAM') {
-    stats.passing = clamp(stats.passing * 1.14);
-    stats.shooting = clamp(stats.shooting * 1.06);
-    stats.pace = clamp(stats.pace * 1.03);
+    stats.passing = clamp(stats.passing * 1.1);
+    stats.dribbling = clamp(stats.dribbling * 1.1);
+    stats.shooting = clamp(stats.shooting * 1.03);
     stats.defense = clamp(stats.defense * 0.72);
   } else if (position === 'LW' || position === 'RW') {
-    stats.pace = clamp(stats.pace * 1.18);
-    stats.shooting = clamp(stats.shooting * 1.06);
-    stats.passing = clamp(stats.passing * 1.1);
-    stats.physical = clamp(stats.physical * 0.98);
-    stats.defense = clamp(stats.defense * 0.68);
+    stats.pace = clamp(stats.pace * 1.14);
+    stats.dribbling = clamp(stats.dribbling * 1.14);
+    stats.passing = clamp(stats.passing * 1.05);
+    stats.defense = clamp(stats.defense * 0.66);
   } else if (position === 'CF') {
-    stats.shooting = clamp(stats.shooting * 1.14);
-    stats.passing = clamp(stats.passing * 1.12);
-    stats.pace = clamp(stats.pace * 1.05);
-    stats.physical = clamp(stats.physical * 1.02);
-    stats.defense = clamp(stats.defense * 0.72);
+    stats.shooting = clamp(stats.shooting * 1.08);
+    stats.passing = clamp(stats.passing * 1.08);
+    stats.dribbling = clamp(stats.dribbling * 1.08);
   } else if (position === 'ST') {
-    stats.shooting = clamp(stats.shooting * 1.22);
-    stats.pace = clamp(stats.pace * 1.08);
-    stats.passing = clamp(stats.passing * 0.86);
-    stats.physical = clamp(stats.physical * 1.08);
+    stats.shooting = clamp(stats.shooting * 1.16);
+    stats.pace = clamp(stats.pace * 1.06);
+    stats.dribbling = clamp(stats.dribbling * 1.04);
+    stats.passing = clamp(stats.passing * 0.88);
     stats.defense = clamp(stats.defense * 0.4);
   }
 
   return stats;
 }
 
-function computeOutfieldStats(row, ranges, position) {
-  const availability = computeAvailability(row);
-  const shotThreat =
-    toNumber(row.Gls) * 16 +
-    toNumber(row.Ast) * 7 +
-    toNumber(row['G+A']) * 5 +
-    toNumber(row.Sh) * 0.9 +
-    toNumber(row.SoT) * 2.4 +
-    toNumber(row['Sh/90']) * 12 +
-    toNumber(row['SoT/90']) * 18 +
-    toNumber(row['G/Sh']) * 40 +
-    toNumber(row['G/SoT']) * 22;
-  const playmaking =
-    toNumber(row.Ast) * 18 +
-    toNumber(row['G+A']) * 4 +
-    toNumber(row.Crs) * 1.4 +
-    toNumber(row.Fld) * 0.8;
-  const defending =
-    toNumber(row.TklW) * 2.7 +
-    toNumber(row.Int) * 2.4 -
-    toNumber(row.OG) * 8 -
-    toNumber(row.Fls) * 0.4;
-  const physicalLoad =
-    toNumber(row.TklW) * 1.8 +
-    toNumber(row.Int) * 1.2 +
-    toNumber(row.Fld) * 1.6 +
-    toNumber(row.Crs) * 0.3 -
-    toNumber(row.CrdY) * 1.8 -
-    toNumber(row.CrdR) * 6;
-  const paceLoad =
-    toNumber(row['Sh/90']) * 16 +
-    toNumber(row['SoT/90']) * 10 +
-    toNumber(row.Fld) * 0.9 +
-    toNumber(row.Crs) * 0.45;
-  const availabilityBonus =
-    normalize(availability, ranges.availability.min, ranges.availability.max) * 0.12;
-
-  const baseStats = {
-    pace: clamp(
-      50 + normalize(paceLoad, ranges.mobility.min, ranges.mobility.max) * 0.38 + availabilityBonus * 0.45,
-    ),
-    shooting: clamp(
-      48 + normalize(shotThreat, ranges.shotThreat.min, ranges.shotThreat.max) * 0.46 + availabilityBonus * 0.25,
-    ),
-    passing: clamp(
-      50 + normalize(playmaking, ranges.playmaking.min, ranges.playmaking.max) * 0.42 + availabilityBonus * 0.3,
-    ),
-    defense: clamp(
-      48 + normalize(defending, ranges.defending.min, ranges.defending.max) * 0.46 + availabilityBonus * 0.35,
-    ),
-    physical: clamp(
-      50 + normalize(physicalLoad, ranges.physical.min, ranges.physical.max) * 0.38 + availabilityBonus * 0.55,
-    ),
-    goalkeeping: 0,
-  };
-
-  return applyPositionBias(position, baseStats);
-}
-
-function computeGoalkeeperStats(row, ranges) {
-  const availability = computeAvailability(row);
+function buildGoalkeeperStats(row, sofascore, transfermarkt, ranges) {
   const goalkeepingRaw =
-    toNumber(row['Save%']) * 0.7 +
-    toNumber(row.Saves) * 1.2 +
-    toNumber(row.SoTA) * 0.35 +
-    toNumber(row['CS%']) * 0.35 +
-    toNumber(row.CS) * 0.8 +
-    toNumber(row.PKsv) * 6 -
-    toNumber(row.GA90) * 9 +
-    availability * 0.22;
-  const availabilityBonus =
-    normalize(availability, ranges.availability.min, ranges.availability.max) * 0.12;
+    toNumber(row['Save%']) * 0.8 +
+    (toNumber(sofascore?.saves) || toNumber(row.Saves)) * 1.3 +
+    toNumber(row.CS) * 0.8 -
+    toNumber(row.GA90) * 8 +
+    toNumber(sofascore?.rating) * 4;
+  const handlingRaw =
+    toNumber(row['Save%']) * 0.55 + toNumber(row.CS) * 0.5 - toNumber(row.GA90) * 4;
+  const reflexesRaw =
+    (toNumber(sofascore?.saves) || toNumber(row.Saves)) * 1.5 +
+    toNumber(row['Save%']) * 0.45 +
+    toNumber(sofascore?.rating) * 3.5;
+  const distributionRaw = toNumber(sofascore?.rating) * 6 + computeAvailability(row) * 0.4;
+  const aerialRaw =
+    toNumber(row.CS) * 0.6 +
+    Math.max(0, toNumber(transfermarkt?.heightInCm) - 180) * 0.35 +
+    toNumber(sofascore?.rating) * 4;
 
   const goalkeeping = clamp(
-    54 +
-      normalize(goalkeepingRaw, ranges.goalkeeping.min, ranges.goalkeeping.max) * 0.44 +
-      availabilityBonus * 0.45,
+    54 + normalize(goalkeepingRaw, ranges.goalkeeping.min, ranges.goalkeeping.max) * 0.44,
+  );
+  const handling = clamp(
+    50 + normalize(handlingRaw, ranges.handling.min, ranges.handling.max) * 0.38,
+  );
+  const reflexes = clamp(
+    52 + normalize(reflexesRaw, ranges.reflexes.min, ranges.reflexes.max) * 0.4,
+  );
+  const distribution = clamp(
+    42 + normalize(distributionRaw, ranges.distribution.min, ranges.distribution.max) * 0.36,
+  );
+  const aerial = clamp(
+    48 + normalize(aerialRaw, ranges.aerial.min, ranges.aerial.max) * 0.34,
   );
 
   return {
-    pace: clamp(34 + normalize(toNumber(row.Saves), 0, 160) * 0.16 + availabilityBonus * 0.15),
+    pace: clamp(34 + normalize(reflexesRaw, ranges.reflexes.min, ranges.reflexes.max) * 0.12),
     shooting: 8,
-    passing: clamp(
-      38 + normalize(toNumber(row.W) - toNumber(row.L), -20, 20) * 0.18 + availabilityBonus * 0.2,
-    ),
+    passing: distribution,
+    dribbling: clamp(20 + distribution * 0.24),
     defense: clamp(goalkeeping * 0.9),
-    physical: clamp(
-      48 + normalize(toNumber(row.SoTA) - toNumber(row.GA), 0, 120) * 0.32 + availabilityBonus * 0.5,
-    ),
+    physical: clamp(48 + normalize(aerialRaw, ranges.aerial.min, ranges.aerial.max) * 0.28),
     goalkeeping,
+    reflexes,
+    handling,
+    distribution,
+    aerial,
   };
 }
 
-function computeRating(position, stats) {
+function computeBaseOverall(position, stats) {
   if (position === 'GK') {
     return clamp(
-      stats.goalkeeping * 0.64 +
-        stats.passing * 0.12 +
-        stats.physical * 0.14 +
-        stats.defense * 0.1,
+      stats.goalkeeping * 0.54 +
+        (stats.reflexes ?? stats.goalkeeping ?? 50) * 0.19 +
+        (stats.handling ?? stats.goalkeeping ?? 50) * 0.13 +
+        (stats.distribution ?? stats.passing) * 0.08 +
+        (stats.aerial ?? stats.physical) * 0.04 +
+        stats.physical * 0.03,
+      58,
+      88,
+    );
+  }
+
+  if (position === 'CB') {
+    return clamp(
+      stats.defense * 0.56 +
+        stats.physical * 0.24 +
+        stats.passing * 0.08 +
+        stats.pace * 0.08 +
+        stats.dribbling * 0.02,
+      56,
+      88,
+    );
+  }
+
+  if (position === 'RB') {
+    return clamp(
+      stats.defense * 0.3 +
+        stats.pace * 0.24 +
+        stats.passing * 0.2 +
+        stats.dribbling * 0.14 +
+        stats.physical * 0.12,
+      56,
+      86,
+    );
+  }
+
+  if (position === 'CDM') {
+    return clamp(
+      stats.defense * 0.35 +
+        stats.passing * 0.24 +
+        stats.physical * 0.2 +
+        stats.dribbling * 0.08 +
+        stats.pace * 0.05 +
+        stats.shooting * 0.06,
+      57,
+      88,
+    );
+  }
+
+  if (position === 'CM') {
+    return clamp(
+      stats.passing * 0.3 +
+        stats.dribbling * 0.18 +
+        stats.defense * 0.16 +
+        stats.shooting * 0.1 +
+        stats.pace * 0.06 +
+        stats.physical * 0.16,
+      57,
+      88,
+    );
+  }
+
+  if (position === 'CAM') {
+    return clamp(
+      stats.passing * 0.28 +
+        stats.dribbling * 0.24 +
+        stats.shooting * 0.18 +
+        stats.pace * 0.1 +
+        stats.physical * 0.08 +
+        stats.defense * 0.06,
       58,
       89,
     );
   }
 
-  if (['CB', 'RB', 'LB'].includes(position)) {
-    return clamp(
-      stats.defense * 0.46 +
-        stats.physical * 0.22 +
-        stats.passing * 0.16 +
-        stats.pace * 0.16,
-      56,
-      92,
-    );
-  }
-
-  if (['CDM', 'CM', 'CAM'].includes(position)) {
-    const passingWeight = position === 'CAM' ? 0.36 : 0.32;
-    const shootingWeight = position === 'CAM' ? 0.22 : 0.18;
-    const defenseWeight = position === 'CDM' ? 0.28 : 0.2;
-    const paceWeight = position === 'CAM' ? 0.14 : 0.12;
-    const physicalWeight = position === 'CDM' ? 0.2 : 0.18;
-
-    return clamp(
-      stats.passing * passingWeight +
-        stats.defense * defenseWeight +
-        stats.shooting * shootingWeight +
-        stats.pace * paceWeight +
-        stats.physical * physicalWeight,
-      57,
-      92,
-    );
-  }
-
   if (position === 'LW' || position === 'RW') {
     return clamp(
-      stats.pace * 0.3 +
-        stats.shooting * 0.28 +
-        stats.passing * 0.24 +
-        stats.physical * 0.14 +
+      stats.pace * 0.22 +
+        stats.dribbling * 0.22 +
+        stats.shooting * 0.2 +
+        stats.passing * 0.16 +
+        stats.physical * 0.1 +
         stats.defense * 0.04,
       58,
-      93,
+      89,
     );
   }
 
   if (position === 'CF') {
     return clamp(
-      stats.shooting * 0.42 +
-        stats.passing * 0.3 +
-        stats.pace * 0.16 +
-        stats.physical * 0.1 +
+      stats.shooting * 0.34 +
+        stats.passing * 0.22 +
+        stats.dribbling * 0.2 +
+        stats.pace * 0.1 +
+        stats.physical * 0.08 +
         stats.defense * 0.02,
       58,
-      93,
-    );
-  }
-
-  if (position === 'ST') {
-    return clamp(
-      stats.shooting * 0.54 +
-        stats.pace * 0.22 +
-        stats.passing * 0.1 +
-        stats.physical * 0.12 +
-        stats.defense * 0.02,
-      58,
-      94,
+      89,
     );
   }
 
   return clamp(
-    stats.shooting * 0.38 +
-      stats.pace * 0.24 +
-      stats.passing * 0.16 +
-      stats.physical * 0.16 +
-      stats.defense * 0.06,
+    stats.shooting * 0.44 +
+      stats.pace * 0.16 +
+      stats.passing * 0.1 +
+      stats.dribbling * 0.1 +
+      stats.physical * 0.12 +
+      stats.defense * 0.02,
     58,
-    94,
+    90,
   );
 }
 
-function computeValue(rating, age, position, stats) {
-  const ageFactor = age <= 23 ? 1.18 : age <= 27 ? 1.08 : age <= 30 ? 0.96 : 0.82;
-  const roleFactor = position === 'GK' ? 0.72 : position === 'ST' || position === 'CF' ? 1.15 : 1;
-  const upside = position === 'GK' ? stats.goalkeeping : Math.max(stats.shooting, stats.passing);
+function computeSofascoreOverall(sofascoreRating) {
+  if (!sofascoreRating) {
+    return 0;
+  }
 
-  return Math.max(1, Math.round(((rating - 45) * 2.6 + upside * 0.55) * ageFactor * roleFactor));
+  return clamp(54 + (sofascoreRating - 6) * 16, 56, 89);
 }
 
-function buildPlayer(row, index, ranges) {
-  const primaryPosition = mapPosition(row.Pos || '', row);
+function computeTransfermarktOverall(
+  marketValueEur,
+  highestMarketValueEur,
+  age,
+  position,
+) {
+  if ((!marketValueEur || marketValueEur <= 0) && (!highestMarketValueEur || highestMarketValueEur <= 0)) {
+    return 0;
+  }
+
+  const currentMarketValue = Math.max(0, marketValueEur);
+  const peakMarketValue = Math.max(currentMarketValue, highestMarketValueEur || 0);
+  const peakShare = age >= 31 ? 0.4 : age >= 28 ? 0.32 : 0.22;
+  const effectiveMarketValue = Math.max(
+    currentMarketValue,
+    currentMarketValue * (1 - peakShare) + peakMarketValue * peakShare,
+  );
+  const roleOffset = position === 'GK' ? -1.5 : position === 'ST' || position === 'CF' ? 1 : 0;
+
+  return clamp(54 + Math.log2(effectiveMarketValue / 1_000_000 + 1) * 5.1 + roleOffset, 56, 89);
+}
+
+function computeEliteRoleBonus(position, stats, age, marketValueMillions, sofascoreRating) {
+  const sofaBonus = sofascoreRating >= 7.45 ? 0.9 : sofascoreRating >= 7.2 ? 0.45 : 0;
+
+  if (position === 'GK') {
+    let bonus = 0;
+    if ((stats.goalkeeping ?? 0) >= 90) {
+      bonus += 1.1;
+    }
+    if ((stats.reflexes ?? 0) >= 82 && (stats.handling ?? 0) >= 80) {
+      bonus += 0.7;
+    }
+    if (marketValueMillions >= 40) {
+      bonus += 0.5;
+    }
+    if (age >= 29 && (stats.goalkeeping ?? 0) >= 81 && (stats.handling ?? 0) >= 77) {
+      bonus += 0.8;
+    }
+    if ((stats.aerial ?? 0) >= 77) {
+      bonus += 0.25;
+    }
+    return bonus + sofaBonus;
+  }
+
+  if (position === 'CB') {
+    let bonus = 0;
+    if (stats.defense >= 88) {
+      bonus += 1.1;
+    }
+    if (stats.physical >= 70) {
+      bonus += 0.5;
+    }
+    if (marketValueMillions >= 70) {
+      bonus += 0.6;
+    }
+    if (age >= 29 && stats.defense >= 68 && stats.physical >= 70) {
+      bonus += 1.15;
+    }
+    return bonus + sofaBonus * 0.7;
+  }
+
+  if (position === 'CDM' || position === 'CM') {
+    let bonus = 0;
+    if (stats.passing >= 72) {
+      bonus += 0.7;
+    }
+    if (stats.defense >= 68) {
+      bonus += 0.6;
+    }
+    if (stats.physical >= 68) {
+      bonus += 0.35;
+    }
+    if (marketValueMillions >= 90) {
+      bonus += 0.7;
+    }
+    if (stats.passing >= 55 && stats.defense >= 66 && stats.physical >= 62) {
+      bonus += 0.7;
+    }
+    if (age >= 27 && stats.passing >= 54 && stats.defense >= 65) {
+      bonus += 0.45;
+    }
+    return bonus + sofaBonus * 0.65;
+  }
+
+  if (position === 'CAM') {
+    let bonus = 0;
+    if (stats.passing >= 78) {
+      bonus += 0.55;
+    }
+    if (stats.dribbling >= 86) {
+      bonus += 0.55;
+    }
+    if (marketValueMillions >= 90) {
+      bonus += 0.45;
+    }
+    if (age >= 29 && stats.passing >= 70 && sofascoreRating >= 7.2) {
+      bonus += 0.5;
+    }
+    if (age >= 29 && stats.passing >= 64 && stats.dribbling >= 74) {
+      bonus += 0.9;
+    }
+    if (stats.passing >= 68 && stats.dribbling >= 76 && stats.physical >= 64) {
+      bonus += 0.4;
+    }
+    return bonus + sofaBonus * 0.45;
+  }
+
+  if (position === 'RB') {
+    let bonus = 0;
+    if (stats.pace >= 56 && stats.dribbling >= 69) {
+      bonus += 0.55;
+    }
+    if (stats.passing >= 58 && stats.defense >= 53) {
+      bonus += 0.4;
+    }
+    if (marketValueMillions >= 70) {
+      bonus += 0.75;
+    }
+    return bonus + sofaBonus * 0.4;
+  }
+
+  if (position === 'ST' || position === 'CF' || position === 'LW' || position === 'RW') {
+    let bonus = 0;
+    if (stats.shooting >= 88) {
+      bonus += 0.85;
+    }
+    if (stats.dribbling >= 86) {
+      bonus += 0.45;
+    }
+    if (stats.passing >= 74 && (position === 'RW' || position === 'LW' || position === 'CF')) {
+      bonus += 0.35;
+    }
+    if (age >= 30 && (stats.shooting >= 86 || stats.passing >= 76) && sofascoreRating >= 7.15) {
+      bonus += 1.15;
+    }
+    if (age >= 30 && ((stats.shooting >= 78 && position === 'ST') || (stats.passing >= 70 && stats.dribbling >= 82))) {
+      bonus += 1.1;
+    }
+    if (age >= 32 && (stats.shooting >= 76 || stats.passing >= 68)) {
+      bonus += 0.7;
+    }
+    if (marketValueMillions >= 80) {
+      bonus += 0.45;
+    }
+    return bonus + sofaBonus * 0.4;
+  }
+
+  return 0;
+}
+
+function computeFinalOverall(baseOverall, sofascoreRating, transfermarkt, age, position, row, stats) {
+  const sofascoreOverall = computeSofascoreOverall(sofascoreRating);
+  const transfermarktOverall = computeTransfermarktOverall(
+    transfermarkt?.marketValueEur ?? 0,
+    transfermarkt?.highestMarketValueEur ?? 0,
+    age,
+    position,
+  );
+  const marketValueMillions = (transfermarkt?.marketValueEur ?? 0) / 1_000_000;
+  const statConfidence = computeStatConfidence(row);
+  const hasSofascore = sofascoreOverall > 0;
+  const hasTransfermarkt = transfermarktOverall > 0;
+
+  let blended = baseOverall;
+
+  if (hasSofascore) {
+    blended =
+      baseOverall * (0.66 + statConfidence * 0.06) +
+      sofascoreOverall * (0.34 - statConfidence * 0.06);
+  }
+
+  if (!hasTransfermarkt) {
+    return clamp(blended, 56, 89);
+  }
+
+  const transfermarktTrust =
+    marketValueMillions >= 120
+      ? 0.34
+      : marketValueMillions >= 80
+        ? 0.28
+        : marketValueMillions >= 40
+          ? 0.22
+          : 0.16;
+  const dynamicTmWeight = transfermarktTrust * (1 - statConfidence * 0.58);
+
+  blended = blended * (1 - dynamicTmWeight) + transfermarktOverall * dynamicTmWeight;
+
+  const lowerTolerance =
+    marketValueMillions >= 150
+      ? 1.5
+      : marketValueMillions >= 100
+        ? 2.25
+        : marketValueMillions >= 60
+          ? 3.25
+          : marketValueMillions >= 30
+            ? 4.25
+            : 5.5;
+  const upperTolerance =
+    marketValueMillions >= 120
+      ? 5.5
+      : marketValueMillions >= 80
+        ? 6.25
+        : marketValueMillions >= 40
+          ? 7
+          : 8;
+  const lowerGap = transfermarktOverall - blended - lowerTolerance;
+  const upperGap = blended - transfermarktOverall - upperTolerance;
+
+  if (lowerGap > 0) {
+    blended += lowerGap * (0.42 + (1 - statConfidence) * 0.28);
+  }
+
+  if (upperGap > 0) {
+    blended -= upperGap * (0.18 + statConfidence * 0.16);
+  }
+
+  blended += computeEliteRoleBonus(position, stats, age, marketValueMillions, sofascoreRating);
+
+  return clamp(blended, 56, 89);
+}
+
+function buildPlayer(row, index, sofascore, transfermarkt, ranges) {
+  const position = mapPosition(row.Pos || '', transfermarkt);
   const age = Math.round(toNumber(row.Age));
   const stats =
-    primaryPosition === 'GK'
-      ? computeGoalkeeperStats(row, ranges)
-      : computeOutfieldStats(row, ranges, primaryPosition);
-  const rating = computeRating(primaryPosition, stats);
-  const value = computeValue(rating, age, primaryPosition, stats);
+    position === 'GK'
+      ? buildGoalkeeperStats(row, sofascore, transfermarkt, ranges)
+      : buildOutfieldStats(row, sofascore, transfermarkt, ranges, position);
+  const rating = computeFinalOverall(
+    computeBaseOverall(position, stats),
+    toNumber(sofascore?.rating),
+    transfermarkt,
+    age,
+    position,
+    row,
+    stats,
+  );
+  const value =
+    transfermarkt?.marketValueEur && transfermarkt.marketValueEur > 0
+      ? Math.max(1, Math.round(transfermarkt.marketValueEur / 1_000_000))
+      : Math.max(1, Math.round(rating - 45));
 
   return {
     id: index + 1,
     name: row.Player,
-    nationality: parseNation(row.Nation),
+    nationality: applyNationalityOverrides(
+      row.Player,
+      parseNation(row.Nation) === 'Unknown'
+        ? transfermarkt?.nationality ?? 'Unknown'
+        : parseNation(row.Nation),
+    ),
     club: row.Squad,
     league: row.Comp,
     age,
-    position: primaryPosition,
+    position,
     rating,
     value,
+    marketValueEur: transfermarkt?.marketValueEur || undefined,
+    transfermarktUrl: transfermarkt?.url ?? null,
     stats,
   };
 }
 
 function main() {
-  const csv = fs.readFileSync(inputPath, 'utf8');
-  const rows = parseCsv(csv).filter((row) => row.Player && row.Squad);
-  const ranges = computeRanges(rows);
-  const players = rows
-    .map((row, index) => buildPlayer(row, index, ranges))
+  const fbrefRows = parseCsv(fs.readFileSync(fbrefPath, 'utf8')).filter(
+    (row) => row.Player && row.Squad,
+  );
+  const sofascoreRows = parseCsv(fs.readFileSync(sofascorePath, 'utf8'));
+  const transfermarktRows = parseCsv(fs.readFileSync(transfermarktPath, 'utf8'));
+
+  const transfermarktIndex = buildTransfermarktIndex(transfermarktRows);
+  const transfermarktEntries = new Map();
+
+  fbrefRows.forEach((row, index) => {
+    transfermarktEntries.set(index, findTransfermarktEntry(row, transfermarktIndex));
+  });
+
+  const sofascoreMatches = matchSofascoreRows(fbrefRows, buildSofascoreIndex(sofascoreRows));
+  const ranges = computeRanges(fbrefRows, sofascoreMatches, transfermarktEntries);
+
+  let transfermarktMatchCount = 0;
+  let sofascoreMatchCount = 0;
+
+  const players = fbrefRows
+    .map((row, index) => {
+      const transfermarktEntry = transfermarktEntries.get(index) ?? null;
+      const sofascoreEntry = sofascoreMatches.get(index) ?? null;
+
+      if (transfermarktEntry) {
+        transfermarktMatchCount += 1;
+      }
+
+      if (sofascoreEntry) {
+        sofascoreMatchCount += 1;
+      }
+
+      return buildPlayer(row, index, sofascoreEntry, transfermarktEntry, ranges);
+    })
     .sort((a, b) => b.rating - a.rating || b.value - a.value);
 
   fs.writeFileSync(outputPath, `${JSON.stringify(players, null, 2)}\n`, 'utf8');
 
-  console.log(`Generated ${players.length} players into ${outputPath}`);
+  console.log(
+    `Generated ${players.length} players into ${outputPath} (${transfermarktMatchCount} matched with Transfermarkt, ${sofascoreMatchCount} matched with Sofascore)`,
+  );
 }
 
 main();

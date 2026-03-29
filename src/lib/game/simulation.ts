@@ -1,4 +1,12 @@
 import { getPlayerRole } from './draft';
+import {
+  buildChanceText,
+  buildGoalText,
+  buildHighlights,
+  buildPressureText,
+  buildSaveText,
+  buildShotText,
+} from './matchCommentary';
 import type { Player } from '../../types/player';
 
 export type MatchSideSummary = {
@@ -72,13 +80,46 @@ function sample<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)] ?? items[0];
 }
 
+function getScorerWeight(player: Player) {
+  const role = getPlayerRole(player.position);
+  const baseWeight =
+    player.stats.shooting * 1 +
+    player.stats.dribbling * 0.2 +
+    player.stats.pace * 0.2 +
+    player.rating * 0.2;
+
+  if (role === 'FWD') {
+    return baseWeight * 1.25;
+  }
+
+  if (role === 'MID') {
+    return baseWeight * 0.8;
+  }
+
+  if (role === 'DEF') {
+    return baseWeight * 0.28;
+  }
+
+  return 0;
+}
+
 function getTopScorers(players: Player[]) {
-  return [...players]
-    .sort((a, b) => {
-      const aScore = a.stats.shooting + a.stats.pace * 0.25 + a.rating * 0.2;
-      const bScore = b.stats.shooting + b.stats.pace * 0.25 + b.rating * 0.2;
-      return bScore - aScore;
-    })
+  const scorerPool = players
+    .map((player) => ({
+      name: player.name,
+      weight: getScorerWeight(player),
+    }))
+    .filter((player) => player.weight > 0);
+  const fallbackPool =
+    scorerPool.length > 0
+      ? scorerPool
+      : players.map((player) => ({
+          name: player.name,
+          weight: player.rating,
+        }));
+
+  return [...fallbackPool]
+    .sort((a, b) => b.weight - a.weight)
     .map((player) => player.name);
 }
 
@@ -92,6 +133,8 @@ function getGoalkeeperStrength(players: Player[]) {
   return Math.round(
     goalkeeper.stats.goalkeeping ??
       goalkeeper.stats.defense * 0.65 +
+        (goalkeeper.stats.reflexes ?? 0) * 0.15 +
+        (goalkeeper.stats.handling ?? 0) * 0.1 +
         goalkeeper.stats.passing * 0.15 +
         goalkeeper.stats.physical * 0.1 +
         goalkeeper.rating * 0.1,
@@ -168,9 +211,11 @@ export function getTeamSummary(players: Player[]): MatchSideSummary {
   const defenseBonus = getDefenseProfileBonus(defenders);
   const goalkeeperSaveRate = Math.round(
     goalkeeper
-      ? (goalkeeper.stats.goalkeeping ?? 50) * 0.72 +
-          goalkeeper.stats.defense * 0.16 +
-          goalkeeper.stats.physical * 0.12
+      ? (goalkeeper.stats.goalkeeping ?? 50) * 0.42 +
+          (goalkeeper.stats.reflexes ?? goalkeeper.stats.goalkeeping ?? 50) * 0.24 +
+          (goalkeeper.stats.handling ?? goalkeeper.stats.goalkeeping ?? 50) * 0.16 +
+          (goalkeeper.stats.aerial ?? goalkeeper.stats.physical) * 0.08 +
+          goalkeeper.stats.defense * 0.1
       : 50,
   );
   const attack = Math.round(
@@ -178,8 +223,9 @@ export function getTeamSummary(players: Player[]): MatchSideSummary {
       attackers.map(
         (player) =>
           player.stats.shooting * 0.52 +
+          player.stats.dribbling * 0.16 +
           player.stats.pace * 0.28 +
-          player.stats.passing * 0.2,
+          player.stats.passing * 0.04,
       ),
     ),
   );
@@ -187,10 +233,11 @@ export function getTeamSummary(players: Player[]): MatchSideSummary {
     average(
       midfielders.map(
         (player) =>
-          player.stats.passing * 0.48 +
+          player.stats.passing * 0.42 +
+          player.stats.dribbling * 0.14 +
           player.stats.defense * 0.18 +
           player.stats.shooting * 0.14 +
-          player.stats.physical * 0.2,
+          player.stats.physical * 0.12,
       ),
     ),
   );
@@ -199,8 +246,9 @@ export function getTeamSummary(players: Player[]): MatchSideSummary {
       defenders.map(
         (player) =>
           player.stats.defense * 0.55 +
+          player.stats.dribbling * 0.05 +
           player.stats.physical * 0.25 +
-          player.stats.passing * 0.2,
+          player.stats.passing * 0.15,
       ),
     ),
   );
@@ -212,51 +260,21 @@ export function getTeamSummary(players: Player[]): MatchSideSummary {
     overall,
     goalkeeping: getGoalkeeperStrength(players),
     chanceCreation: Math.round(
-      midfield * 0.58 + attack * 0.2 + attackerBonus.creation + midfieldBonus.creation + defenseBonus.transition * 0.35,
+      midfield * 0.58 +
+        attack * 0.2 +
+        attackerBonus.creation +
+        midfieldBonus.creation +
+        defenseBonus.transition * 0.35,
     ),
     finishing: Math.round(attack * 0.72 + attackerBonus.finishing + midfield * 0.08),
     transitionThreat: Math.round(
       attack * 0.28 + midfield * 0.2 + attackerBonus.transition + defenseBonus.transition,
     ),
-    shotPrevention: Math.round(defense * 0.72 + midfield * 0.14 + midfieldBonus.protection + defenseBonus.prevention),
+    shotPrevention: Math.round(
+      defense * 0.72 + midfield * 0.14 + midfieldBonus.protection + defenseBonus.prevention,
+    ),
     saveRate: clamp(goalkeeperSaveRate, 45, 99),
   };
-}
-
-function buildHighlights(
-  userSummary: MatchSideSummary,
-  aiSummary: MatchSideSummary,
-  userScore: number,
-  aiScore: number,
-  events: MatchEvent[],
-) {
-  const highlights: string[] = [];
-
-  if (userSummary.midfield > aiSummary.midfield + 4) {
-    highlights.push('Ton milieu a imposé le rythme du match.');
-  } else if (aiSummary.midfield > userSummary.midfield + 4) {
-    highlights.push("L'IA a mieux contrôlé la circulation du ballon.");
-  }
-
-  if (userSummary.goalkeeping > aiSummary.goalkeeping + 4) {
-    highlights.push('Ton gardien a apporté une vraie sécurité.');
-  } else if (aiSummary.goalkeeping > userSummary.goalkeeping + 4) {
-    highlights.push("Le gardien de l'IA a souvent repoussé les situations chaudes.");
-  }
-
-  if (events.filter((event) => event.type === 'goal').length <= 1) {
-    highlights.push('Le match a surtout été tactique, avec peu d’espaces.');
-  }
-
-  if (userScore === aiScore) {
-    highlights.push('Le score est resté indécis jusqu’au bout.');
-  } else if (Math.abs(userScore - aiScore) >= 2) {
-    highlights.push("L'écart final traduit une domination assez nette.");
-  } else {
-    highlights.push('Le match s’est joué sur des détails.');
-  }
-
-  return highlights;
 }
 
 function buildPressureEvent(
@@ -274,36 +292,6 @@ function buildPressureEvent(
     userScore,
     aiScore,
   };
-}
-
-function buildChanceText(team: 'user' | 'ai', quality: number) {
-  if (quality >= 72) {
-    return team === 'user'
-      ? 'Ton équipe construit une énorme occasion dans la surface.'
-      : "L'IA se crée une situation très dangereuse.";
-  }
-
-  return team === 'user'
-    ? 'Ton équipe trouve une ouverture intéressante.'
-    : "L'IA parvient à accélérer dans les trente derniers mètres.";
-}
-
-function buildSaveText(team: 'user' | 'ai') {
-  return team === 'user'
-    ? "Le gardien adverse s'interpose sur une frappe dangereuse."
-    : 'Ton gardien sort un arrêt important.';
-}
-
-function buildShotText(team: 'user' | 'ai') {
-  return team === 'user'
-    ? 'La tentative de ton équipe passe à côté.'
-    : "La frappe de l'IA ne trouve pas le cadre.";
-}
-
-function buildGoalText(team: 'user' | 'ai', scorer: string) {
-  return team === 'user'
-    ? `${scorer} conclut l’action pour ton équipe.`
-    : `${scorer} punit ta défense pour l’IA.`;
 }
 
 function maybeAddEvent(events: MatchEvent[], event: MatchEvent | null) {
@@ -391,9 +379,12 @@ function simulateSegment(
       buildPressureEvent(
         minute,
         attackingTeam.label,
-        attackingTeam.label === 'user'
-          ? 'Ton équipe installe une longue phase de possession.'
-          : "L'IA monopolise le ballon pendant plusieurs secondes.",
+        buildPressureText(
+          minute,
+          attackingTeam.label,
+          score[attackingTeam.label],
+          score[defendingTeam.label],
+        ),
         score.user,
         score.ai,
       ),
@@ -425,7 +416,7 @@ function simulateSegment(
     minute,
     team: attackingTeam.label,
     type: 'chance',
-    text: buildChanceText(attackingTeam.label, chanceQuality),
+    text: buildChanceText(attackingTeam.label, chanceQuality, minute),
     userScore: score.user,
     aiScore: score.ai,
   });
@@ -439,7 +430,7 @@ function simulateSegment(
       team: attackingTeam.label,
       type: 'shot',
       xg: shotXg,
-      text: buildShotText(attackingTeam.label),
+      text: buildShotText(attackingTeam.label, shotXg),
       userScore: score.user,
       aiScore: score.ai,
     });
@@ -460,7 +451,7 @@ function simulateSegment(
       team: defendingTeam.label,
       type: 'save',
       xg: shotXg,
-      text: buildSaveText(attackingTeam.label),
+      text: buildSaveText(attackingTeam.label, shotXg),
       userScore: score.user,
       aiScore: score.ai,
     });
@@ -481,7 +472,7 @@ function simulateSegment(
     type: 'goal',
     scorer,
     xg: shotXg,
-    text: buildGoalText(attackingTeam.label, scorer),
+    text: buildGoalText(attackingTeam.label, scorer, minute + 1, shotXg),
     userScore: score.user,
     aiScore: score.ai,
   });
@@ -529,11 +520,7 @@ export function simulateMatch(userTeam: Player[], aiTeam: Player[]): MatchResult
   });
 
   const orderedEvents = [...events].sort((a, b) => a.minute - b.minute);
-  const { userStats, aiStats } = buildMatchStats(
-    userSummary,
-    aiSummary,
-    orderedEvents,
-  );
+  const { userStats, aiStats } = buildMatchStats(userSummary, aiSummary, orderedEvents);
 
   return {
     userScore: score.user,
