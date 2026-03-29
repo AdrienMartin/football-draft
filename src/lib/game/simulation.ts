@@ -1,6 +1,9 @@
 import { getPlayerRole } from './draft';
 import {
+  buildBlockText,
   buildChanceText,
+  buildCounterText,
+  buildCrossText,
   buildGoalText,
   buildHighlights,
   buildPressureText,
@@ -25,8 +28,9 @@ export type MatchSideSummary = {
 export type MatchEvent = {
   minute: number;
   team: 'user' | 'ai';
-  type: 'goal' | 'chance' | 'save' | 'pressure' | 'shot';
+  type: 'goal' | 'chance' | 'save' | 'pressure' | 'shot' | 'counter' | 'cross' | 'block';
   scorer?: string;
+  assister?: string;
   xg?: number;
   userScore: number;
   aiScore: number;
@@ -38,6 +42,10 @@ export type MatchSideStats = {
   shots: number;
   shotsOnTarget: number;
   xg: number;
+  bigChances: number;
+  saves: number;
+  blocks: number;
+  dangerousAttacks: number;
 };
 
 export type MatchResult = {
@@ -56,6 +64,16 @@ type TeamContext = {
   label: 'user' | 'ai';
   summary: MatchSideSummary;
   scorers: string[];
+  creators: string[];
+  centralScorers: string[];
+  transitionScorers: string[];
+  wideScorers: string[];
+  centralCreators: string[];
+  wideCreators: string[];
+  transitionCreators: string[];
+  centralBias: number;
+  wideBias: number;
+  transitionBias: number;
 };
 
 const MATCH_SEGMENTS = [4, 9, 14, 20, 26, 33, 40, 48, 56, 64, 72, 79, 85, 89];
@@ -103,13 +121,187 @@ function getScorerWeight(player: Player) {
   return 0;
 }
 
-function getTopScorers(players: Player[]) {
-  const scorerPool = players
+function getCreatorWeight(player: Player) {
+  const role = getPlayerRole(player.position);
+  const baseWeight =
+    player.stats.passing * 0.8 +
+    player.stats.dribbling * 0.45 +
+    player.stats.pace * 0.1 +
+    player.rating * 0.18;
+
+  if (role === 'MID') {
+    return baseWeight * 1.22;
+  }
+
+  if (role === 'FWD') {
+    return baseWeight * 0.92;
+  }
+
+  if (role === 'DEF') {
+    return baseWeight * 0.45;
+  }
+
+  return baseWeight * 0.2;
+}
+
+function getPlayersSortedByWeight(players: Player[], getWeight: (player: Player) => number) {
+  return [...players]
     .map((player) => ({
       name: player.name,
-      weight: getScorerWeight(player),
+      weight: getWeight(player),
     }))
-    .filter((player) => player.weight > 0);
+    .filter((player) => player.weight > 0)
+    .sort((a, b) => b.weight - a.weight)
+    .map((player) => player.name);
+}
+
+function getWeightedStrength(players: Player[], getWeight: (player: Player) => number) {
+  return players.reduce((total, player) => total + getWeight(player), 0);
+}
+
+function getCentralScorerWeight(player: Player) {
+  const role = getPlayerRole(player.position);
+  const baseWeight =
+    player.stats.shooting * 1.02 +
+    player.stats.dribbling * 0.16 +
+    player.stats.passing * 0.08 +
+    player.rating * 0.18;
+
+  if (player.position === 'ST' || player.position === 'CF') {
+    return baseWeight * 1.28;
+  }
+
+  if (player.position === 'CAM') {
+    return baseWeight * 0.92;
+  }
+
+  if (role === 'MID') {
+    return baseWeight * 0.72;
+  }
+
+  if (role === 'DEF') {
+    return baseWeight * 0.24;
+  }
+
+  return baseWeight;
+}
+
+function getWideScorerWeight(player: Player) {
+  const role = getPlayerRole(player.position);
+  const baseWeight =
+    player.stats.shooting * 0.82 +
+    player.stats.dribbling * 0.32 +
+    player.stats.pace * 0.24 +
+    player.rating * 0.14;
+
+  if (player.position === 'LW' || player.position === 'RW') {
+    return baseWeight * 1.3;
+  }
+
+  if (player.position === 'ST' || player.position === 'CF') {
+    return baseWeight * 1.05;
+  }
+
+  if (role === 'DEF') {
+    return baseWeight * 0.42;
+  }
+
+  if (role === 'MID') {
+    return baseWeight * 0.88;
+  }
+
+  return baseWeight;
+}
+
+function getTransitionScorerWeight(player: Player) {
+  const role = getPlayerRole(player.position);
+  const baseWeight =
+    player.stats.pace * 0.42 +
+    player.stats.dribbling * 0.28 +
+    player.stats.shooting * 0.26 +
+    player.rating * 0.12;
+
+  if (player.position === 'LW' || player.position === 'RW') {
+    return baseWeight * 1.26;
+  }
+
+  if (player.position === 'ST' || player.position === 'CF') {
+    return baseWeight * 1.14;
+  }
+
+  if (role === 'MID') {
+    return baseWeight * 0.82;
+  }
+
+  if (role === 'DEF') {
+    return baseWeight * 0.18;
+  }
+
+  return baseWeight;
+}
+
+function getCentralCreatorWeight(player: Player) {
+  const role = getPlayerRole(player.position);
+  const baseWeight =
+    player.stats.passing * 0.86 +
+    player.stats.dribbling * 0.26 +
+    player.stats.shooting * 0.06 +
+    player.rating * 0.16;
+
+  if (player.position === 'CAM' || player.position === 'CM' || player.position === 'CF') {
+    return baseWeight * 1.24;
+  }
+
+  if (role === 'MID') {
+    return baseWeight * 1.08;
+  }
+
+  return baseWeight;
+}
+
+function getWideCreatorWeight(player: Player) {
+  const role = getPlayerRole(player.position);
+  const baseWeight =
+    player.stats.passing * 0.48 +
+    player.stats.dribbling * 0.34 +
+    player.stats.pace * 0.18 +
+    player.rating * 0.14;
+
+  if (player.position === 'LW' || player.position === 'RW' || player.position === 'RB') {
+    return baseWeight * 1.26;
+  }
+
+  if (role === 'MID') {
+    return baseWeight * 1.02;
+  }
+
+  return baseWeight;
+}
+
+function getTransitionCreatorWeight(player: Player) {
+  const role = getPlayerRole(player.position);
+  const baseWeight =
+    player.stats.pace * 0.36 +
+    player.stats.dribbling * 0.34 +
+    player.stats.passing * 0.22 +
+    player.rating * 0.12;
+
+  if (player.position === 'LW' || player.position === 'RW' || player.position === 'RB') {
+    return baseWeight * 1.28;
+  }
+
+  if (role === 'MID') {
+    return baseWeight * 1.04;
+  }
+
+  return baseWeight;
+}
+
+function getTopScorers(players: Player[]) {
+  const scorerPool = getPlayersSortedByWeight(players, getScorerWeight).map((name, index) => ({
+    name,
+    weight: scorerPoolWeight(index),
+  }));
   const fallbackPool =
     scorerPool.length > 0
       ? scorerPool
@@ -121,6 +313,28 @@ function getTopScorers(players: Player[]) {
   return [...fallbackPool]
     .sort((a, b) => b.weight - a.weight)
     .map((player) => player.name);
+}
+
+function scorerPoolWeight(index: number) {
+  return Math.max(1, 100 - index * 8);
+}
+
+function getTopCreators(players: Player[]) {
+  return getPlayersSortedByWeight(players, getCreatorWeight);
+}
+
+function getTeamAttackBias(players: Player[]) {
+  const centralBias =
+    getWeightedStrength(players, getCentralScorerWeight) * 0.54 +
+    getWeightedStrength(players, getCentralCreatorWeight) * 0.46;
+  const wideBias =
+    getWeightedStrength(players, getWideScorerWeight) * 0.48 +
+    getWeightedStrength(players, getWideCreatorWeight) * 0.52;
+  const transitionBias =
+    getWeightedStrength(players, getTransitionScorerWeight) * 0.52 +
+    getWeightedStrength(players, getTransitionCreatorWeight) * 0.48;
+
+  return { centralBias, wideBias, transitionBias };
 }
 
 function getGoalkeeperStrength(players: Player[]) {
@@ -294,6 +508,66 @@ function buildPressureEvent(
   };
 }
 
+function pickAssister(team: TeamContext, scorer?: string) {
+  const candidates = team.creators.filter((name) => name !== scorer);
+
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  return sample(candidates.slice(0, 3));
+}
+
+function pickScorer(team: TeamContext, attackMode: 'wide' | 'central' | 'transition') {
+  const candidates =
+    attackMode === 'wide'
+      ? team.wideScorers
+      : attackMode === 'transition'
+        ? team.transitionScorers
+        : team.centralScorers;
+
+  return sample(candidates.slice(0, 4)) ?? sample(team.scorers.slice(0, 4)) ?? 'Un attaquant';
+}
+
+function pickModeAssister(
+  team: TeamContext,
+  attackMode: 'wide' | 'central' | 'transition',
+  scorer?: string,
+) {
+  const candidates =
+    attackMode === 'wide'
+      ? team.wideCreators
+      : attackMode === 'transition'
+        ? team.transitionCreators
+        : team.centralCreators;
+  const filtered = candidates.filter((name) => name !== scorer);
+
+  if (filtered.length === 0) {
+    return pickAssister(team, scorer);
+  }
+
+  return sample(filtered.slice(0, 3));
+}
+
+function buildLiveEvent(
+  minute: number,
+  team: 'user' | 'ai',
+  type: MatchEvent['type'],
+  text: string,
+  score: { user: number; ai: number },
+  extras?: Partial<MatchEvent>,
+): MatchEvent {
+  return {
+    minute,
+    team,
+    type,
+    text,
+    userScore: score.user,
+    aiScore: score.ai,
+    ...extras,
+  };
+}
+
 function maybeAddEvent(events: MatchEvent[], event: MatchEvent | null) {
   if (event) {
     events.push(event);
@@ -343,6 +617,16 @@ function buildMatchStats(
         (event) => event.type === 'save' || event.type === 'goal',
       ).length,
       xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+      bigChances: events.filter(
+        (event) => event.team === 'user' && event.type === 'chance' && (event.xg ?? 0) >= 0.28,
+      ).length,
+      saves: events.filter((event) => event.team === 'user' && event.type === 'save').length,
+      blocks: events.filter((event) => event.team === 'user' && event.type === 'block').length,
+      dangerousAttacks: events.filter(
+        (event) =>
+          event.team === 'user' &&
+          (event.type === 'chance' || event.type === 'counter' || event.type === 'cross'),
+      ).length,
     },
     aiStats: {
       possession: aiPossession,
@@ -351,6 +635,16 @@ function buildMatchStats(
         (event) => event.type === 'save' || event.type === 'goal',
       ).length,
       xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+      bigChances: events.filter(
+        (event) => event.team === 'ai' && event.type === 'chance' && (event.xg ?? 0) >= 0.28,
+      ).length,
+      saves: events.filter((event) => event.team === 'ai' && event.type === 'save').length,
+      blocks: events.filter((event) => event.team === 'ai' && event.type === 'block').length,
+      dangerousAttacks: events.filter(
+        (event) =>
+          event.team === 'ai' &&
+          (event.type === 'chance' || event.type === 'counter' || event.type === 'cross'),
+      ).length,
     },
   };
 }
@@ -365,6 +659,30 @@ function simulateSegment(
   const attackingBias = score[attackingTeam.label] < score[defendingTeam.label] ? 3 : 0;
   const defendingBias = score[defendingTeam.label] > score[attackingTeam.label] ? 2 : 0;
   const fatigueFactor = minute > 70 ? 0.96 : minute > 45 ? 0.98 : 1;
+  const centralThreat =
+    attackingTeam.summary.chanceCreation -
+    defendingTeam.summary.midfield * 0.35 +
+    attackingTeam.centralBias * 0.015;
+  const wideThreat =
+    attackingTeam.summary.transitionThreat -
+    defendingTeam.summary.defense * 0.22 +
+    attackingTeam.wideBias * 0.016;
+  const transitionThreat =
+    attackingTeam.summary.transitionThreat -
+    defendingTeam.summary.midfield * 0.18 +
+    attackingTeam.transitionBias * 0.018;
+  const attackModePool = [
+    ...Array.from({
+      length: Math.max(1, Math.round(clamp(centralThreat / 18, 1, 5))),
+    }).map(() => 'central' as const),
+    ...Array.from({
+      length: Math.max(1, Math.round(clamp(wideThreat / 18, 1, 5))),
+    }).map(() => 'wide' as const),
+    ...Array.from({
+      length: Math.max(1, Math.round(clamp(transitionThreat / 18, 1, 5))),
+    }).map(() => 'transition' as const),
+  ];
+  const attackMode = sample(attackModePool) ?? 'central';
 
   const possessionEdge =
     attackingTeam.summary.midfield -
@@ -391,10 +709,36 @@ function simulateSegment(
     );
   }
 
+  if (attackMode === 'transition') {
+    maybeAddEvent(
+      events,
+      buildLiveEvent(
+        minute,
+        attackingTeam.label,
+        'counter',
+        buildCounterText(attackingTeam.label, minute),
+        score,
+      ),
+    );
+  } else if (attackMode === 'wide' && Math.random() < 0.64) {
+    maybeAddEvent(
+      events,
+      buildLiveEvent(
+        minute,
+        attackingTeam.label,
+        'cross',
+        buildCrossText(attackingTeam.label),
+        score,
+      ),
+    );
+  }
+
   const chanceQuality =
     (attackingTeam.summary.finishing * 0.34 +
       attackingTeam.summary.chanceCreation * 0.38 +
       attackingTeam.summary.transitionThreat * 0.16 +
+      (attackMode === 'transition' ? 4.5 : 0) +
+      (attackMode === 'wide' ? 2.5 : 0) +
       randomBetween(10, 24) -
       defendingTeam.summary.shotPrevention * 0.15 -
       defendingTeam.summary.saveRate * 0.025) *
@@ -412,28 +756,45 @@ function simulateSegment(
     return;
   }
 
-  maybeAddEvent(events, {
-    minute,
-    team: attackingTeam.label,
-    type: 'chance',
-    text: buildChanceText(attackingTeam.label, chanceQuality, minute),
-    userScore: score.user,
-    aiScore: score.ai,
-  });
+  maybeAddEvent(
+    events,
+    buildLiveEvent(
+      minute,
+      attackingTeam.label,
+      'chance',
+      buildChanceText(attackingTeam.label, chanceQuality, minute),
+      score,
+      {
+        xg: roundXg(clamp((chanceQuality - 18) / 65, 0.04, 0.62)),
+      },
+    ),
+  );
 
   const shotOnTargetProbability = clamp((chanceQuality - 24) / 32, 0.48, 0.95);
   const shotXg = roundXg(clamp((chanceQuality - 18) / 65, 0.04, 0.62));
 
+  if (Math.random() < clamp((defendingTeam.summary.shotPrevention - attackingTeam.summary.finishing) / 180 + 0.08, 0.05, 0.24)) {
+    maybeAddEvent(
+      events,
+      buildLiveEvent(
+        minute + 1,
+        defendingTeam.label,
+        'block',
+        buildBlockText(attackingTeam.label),
+        score,
+        { xg: roundXg(shotXg * 0.65) },
+      ),
+    );
+    return;
+  }
+
   if (Math.random() > shotOnTargetProbability) {
-    maybeAddEvent(events, {
-      minute: minute + 1,
-      team: attackingTeam.label,
-      type: 'shot',
-      xg: shotXg,
-      text: buildShotText(attackingTeam.label, shotXg),
-      userScore: score.user,
-      aiScore: score.ai,
-    });
+    maybeAddEvent(
+      events,
+      buildLiveEvent(minute + 1, attackingTeam.label, 'shot', buildShotText(attackingTeam.label, shotXg), score, {
+        xg: shotXg,
+      }),
+    );
     return;
   }
 
@@ -446,19 +807,17 @@ function simulateSegment(
   );
 
   if (Math.random() > goalProbability) {
-    maybeAddEvent(events, {
-      minute: minute + 1,
-      team: defendingTeam.label,
-      type: 'save',
-      xg: shotXg,
-      text: buildSaveText(attackingTeam.label, shotXg),
-      userScore: score.user,
-      aiScore: score.ai,
-    });
+    maybeAddEvent(
+      events,
+      buildLiveEvent(minute + 1, defendingTeam.label, 'save', buildSaveText(attackingTeam.label, shotXg), score, {
+        xg: shotXg,
+      }),
+    );
     return;
   }
 
-  const scorer = sample(attackingTeam.scorers) ?? 'Un attaquant';
+  const scorer = pickScorer(attackingTeam, attackMode);
+  const assister = pickModeAssister(attackingTeam, attackMode, scorer);
 
   if (attackingTeam.label === 'user') {
     score.user += 1;
@@ -466,16 +825,21 @@ function simulateSegment(
     score.ai += 1;
   }
 
-  maybeAddEvent(events, {
-    minute: minute + 1,
-    team: attackingTeam.label,
-    type: 'goal',
-    scorer,
-    xg: shotXg,
-    text: buildGoalText(attackingTeam.label, scorer, minute + 1, shotXg),
-    userScore: score.user,
-    aiScore: score.ai,
-  });
+  maybeAddEvent(
+    events,
+    buildLiveEvent(
+      minute + 1,
+      attackingTeam.label,
+      'goal',
+      buildGoalText(attackingTeam.label, scorer, minute + 1, shotXg, assister),
+      score,
+      {
+        scorer,
+        assister,
+        xg: shotXg,
+      },
+    ),
+  );
 }
 
 export function simulateMatch(userTeam: Player[], aiTeam: Player[]): MatchResult {
@@ -485,11 +849,27 @@ export function simulateMatch(userTeam: Player[], aiTeam: Player[]): MatchResult
     label: 'user',
     summary: userSummary,
     scorers: getTopScorers(userTeam),
+    creators: getTopCreators(userTeam),
+    centralScorers: getPlayersSortedByWeight(userTeam, getCentralScorerWeight),
+    transitionScorers: getPlayersSortedByWeight(userTeam, getTransitionScorerWeight),
+    wideScorers: getPlayersSortedByWeight(userTeam, getWideScorerWeight),
+    centralCreators: getPlayersSortedByWeight(userTeam, getCentralCreatorWeight),
+    wideCreators: getPlayersSortedByWeight(userTeam, getWideCreatorWeight),
+    transitionCreators: getPlayersSortedByWeight(userTeam, getTransitionCreatorWeight),
+    ...getTeamAttackBias(userTeam),
   };
   const aiContext: TeamContext = {
     label: 'ai',
     summary: aiSummary,
     scorers: getTopScorers(aiTeam),
+    creators: getTopCreators(aiTeam),
+    centralScorers: getPlayersSortedByWeight(aiTeam, getCentralScorerWeight),
+    transitionScorers: getPlayersSortedByWeight(aiTeam, getTransitionScorerWeight),
+    wideScorers: getPlayersSortedByWeight(aiTeam, getWideScorerWeight),
+    centralCreators: getPlayersSortedByWeight(aiTeam, getCentralCreatorWeight),
+    wideCreators: getPlayersSortedByWeight(aiTeam, getWideCreatorWeight),
+    transitionCreators: getPlayersSortedByWeight(aiTeam, getTransitionCreatorWeight),
+    ...getTeamAttackBias(aiTeam),
   };
   const events: MatchEvent[] = [];
   const score = { user: 0, ai: 0 };

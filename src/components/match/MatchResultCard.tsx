@@ -62,6 +62,29 @@ function getEventStyle(event: MatchEvent) {
   };
 }
 
+function getEventBadgeLabel(event: MatchEvent) {
+  switch (event.type) {
+    case 'goal':
+      return 'But';
+    case 'chance':
+      return 'Occasion';
+    case 'save':
+      return 'Arrêt';
+    case 'pressure':
+      return 'Temps fort';
+    case 'shot':
+      return 'Frappe';
+    case 'counter':
+      return 'Contre';
+    case 'cross':
+      return 'Centre';
+    case 'block':
+      return 'Contre déf.';
+    default:
+      return event.type;
+  }
+}
+
 function buildScorerSummary(events: MatchEvent[]) {
   const goals = events.filter((event) => event.type === 'goal' && event.scorer);
   const userScorers = new Map<string, number>();
@@ -154,6 +177,16 @@ function buildVisibleStats(result: MatchResult, visibleEvents: MatchEvent[]) {
         (event) => event.type === 'save' || event.type === 'goal',
       ).length,
       xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+      bigChances: visibleEvents.filter(
+        (event) => event.team === 'user' && event.type === 'chance' && (event.xg ?? 0) >= 0.28,
+      ).length,
+      saves: visibleEvents.filter((event) => event.team === 'user' && event.type === 'save').length,
+      blocks: visibleEvents.filter((event) => event.team === 'user' && event.type === 'block').length,
+      dangerousAttacks: visibleEvents.filter(
+        (event) =>
+          event.team === 'user' &&
+          (event.type === 'chance' || event.type === 'counter' || event.type === 'cross'),
+      ).length,
     },
     ai: {
       possession: result.aiStats.possession,
@@ -162,6 +195,16 @@ function buildVisibleStats(result: MatchResult, visibleEvents: MatchEvent[]) {
         (event) => event.type === 'save' || event.type === 'goal',
       ).length,
       xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+      bigChances: visibleEvents.filter(
+        (event) => event.team === 'ai' && event.type === 'chance' && (event.xg ?? 0) >= 0.28,
+      ).length,
+      saves: visibleEvents.filter((event) => event.team === 'ai' && event.type === 'save').length,
+      blocks: visibleEvents.filter((event) => event.team === 'ai' && event.type === 'block').length,
+      dangerousAttacks: visibleEvents.filter(
+        (event) =>
+          event.team === 'ai' &&
+          (event.type === 'chance' || event.type === 'counter' || event.type === 'cross'),
+      ).length,
     },
   };
 }
@@ -185,8 +228,11 @@ function MatchStatsTable({
       user: `${stats.user.shotsOnTarget}`,
       ai: `${stats.ai.shotsOnTarget}`,
     },
+    { label: 'Arrêts', user: `${stats.user.saves}`, ai: `${stats.ai.saves}` },
+    { label: 'Contres déf.', user: `${stats.user.blocks}`, ai: `${stats.ai.blocks}` },
     { label: 'xG', user: stats.user.xg, ai: stats.ai.xg },
   ];
+  rows.splice(3, 2);
 
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
@@ -412,16 +458,23 @@ export function MatchResultCard({
                   </div>
 
                   {isGoal && (
-                    <p className="mt-2 text-sm font-medium text-white">
-                      {adaptOpponentText(event.text, opponentLabel)}
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-sm font-medium text-white">
+                        {adaptOpponentText(event.text, opponentLabel)}
+                      </p>
+                      {event.assister ? (
+                        <p className="text-xs text-slate-300">
+                          Passe décisive : {event.assister}
+                        </p>
+                      ) : null}
+                    </div>
                   )}
 
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <span
                       className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${styles.badge}`}
                     >
-                      {isGoal ? 'But' : event.type}
+                      {getEventBadgeLabel(event)}
                     </span>
                     <p className={`${isGoal ? 'text-sm font-bold' : 'text-xs'} ${styles.score}`}>
                       Score : {event.userScore} - {event.aiScore}

@@ -6,7 +6,15 @@ type CommentarySummary = {
 };
 
 type CommentaryEvent = {
-  type: 'goal' | 'chance' | 'save' | 'pressure' | 'shot';
+  type:
+    | 'goal'
+    | 'chance'
+    | 'save'
+    | 'pressure'
+    | 'shot'
+    | 'counter'
+    | 'cross'
+    | 'block';
 };
 
 function sample<T>(items: T[]) {
@@ -15,6 +23,10 @@ function sample<T>(items: T[]) {
 
 function pickText(options: string[]) {
   return sample(options);
+}
+
+function getTeamName(team: CommentaryTeam) {
+  return team === 'user' ? 'Ton équipe' : "L'équipe adverse";
 }
 
 export function buildHighlights(
@@ -91,6 +103,50 @@ export function buildPressureText(
     "L'équipe adverse fait tourner et cherche la faille.",
     "L'équipe adverse impose un temps fort dans ton camp.",
     "L'équipe adverse fait reculer ton bloc avec une longue séquence.",
+  ]);
+}
+
+export function buildCounterText(team: CommentaryTeam, minute: number) {
+  const teamName = getTeamName(team);
+
+  if (minute >= 70) {
+    return pickText([
+      `${teamName} part en contre à pleine vitesse.`,
+      `${teamName} se projette vite après la récupération.`,
+      `${teamName} exploite l'espace laissé dans le dos de la défense.`,
+    ]);
+  }
+
+  return pickText([
+    `${teamName} lance une transition rapide.`,
+    `${teamName} jaillit en contre et gagne du terrain.`,
+    `${teamName} accélère d'un coup après la récupération.`,
+  ]);
+}
+
+export function buildCrossText(team: CommentaryTeam) {
+  const teamName = getTeamName(team);
+
+  return pickText([
+    `${teamName} fait la différence sur le côté et centre dans la surface.`,
+    `${teamName} trouve un décalage sur l'aile et envoie le ballon devant le but.`,
+    `${teamName} passe par les côtés pour apporter le danger dans la surface.`,
+  ]);
+}
+
+export function buildBlockText(team: CommentaryTeam) {
+  if (team === 'user') {
+    return pickText([
+      "La défense adverse contre la tentative au dernier moment.",
+      "Un défenseur adverse se jette et détourne la frappe.",
+      "Le tir de ton équipe est freiné par un retour défensif.",
+    ]);
+  }
+
+  return pickText([
+    'Ta défense revient de justesse pour contrer la frappe.',
+    'Un défenseur de ton équipe bloque la tentative adverse.',
+    "Ton bloc défensif ferme la porte au dernier instant.",
   ]);
 }
 
@@ -205,50 +261,53 @@ export function buildGoalText(
   scorer: string,
   minute: number,
   quality: number,
+  assister?: string,
 ) {
+  const assistedSuffix = assister ? ` après un service de ${assister}` : '';
+
   if (team === 'user') {
     if (minute >= 75) {
       return pickText([
-        `${scorer} fait exploser le match en fin de rencontre.`,
-        `${scorer} surgit au meilleur moment pour ton équipe.`,
-        `${scorer} frappe au moment où le match se tend.`,
+        `${scorer} fait exploser le match en fin de rencontre${assistedSuffix}.`,
+        `${scorer} surgit au meilleur moment pour ton équipe${assistedSuffix}.`,
+        `${scorer} frappe au moment où le match se tend${assistedSuffix}.`,
       ]);
     }
 
     if (quality >= 0.35) {
       return pickText([
-        `${scorer} conclut une très belle action pour ton équipe.`,
-        `${scorer} transforme cette grosse occasion pour ton équipe.`,
-        `${scorer} sanctionne la défense adverse avec beaucoup de sang-froid.`,
+        `${scorer} conclut une très belle action pour ton équipe${assistedSuffix}.`,
+        `${scorer} transforme cette grosse occasion pour ton équipe${assistedSuffix}.`,
+        `${scorer} sanctionne la défense adverse avec beaucoup de sang-froid${assistedSuffix}.`,
       ]);
     }
 
     return pickText([
-      `${scorer} conclut l’action pour ton équipe.`,
-      `${scorer} pousse le ballon au fond pour ton équipe.`,
-      `${scorer} trouve enfin l’ouverture pour ton équipe.`,
+      `${scorer} conclut l’action pour ton équipe${assistedSuffix}.`,
+      `${scorer} pousse le ballon au fond pour ton équipe${assistedSuffix}.`,
+      `${scorer} trouve enfin l’ouverture pour ton équipe${assistedSuffix}.`,
     ]);
   }
 
   if (minute >= 75) {
     return pickText([
-      `${scorer} frappe très tard pour l'équipe adverse.`,
-      `${scorer} punit ta défense dans les derniers instants.`,
-      `${scorer} fait basculer la fin de match pour l'équipe adverse.`,
+      `${scorer} frappe très tard pour l'équipe adverse${assistedSuffix}.`,
+      `${scorer} punit ta défense dans les derniers instants${assistedSuffix}.`,
+      `${scorer} fait basculer la fin de match pour l'équipe adverse${assistedSuffix}.`,
     ]);
   }
 
   if (quality >= 0.35) {
     return pickText([
-      `${scorer} conclut une action dangereuse pour l'équipe adverse.`,
-      `${scorer} sanctionne ta défense sur cette grosse situation.`,
-      `${scorer} transforme cette occasion nette pour l'équipe adverse.`,
+      `${scorer} conclut une action dangereuse pour l'équipe adverse${assistedSuffix}.`,
+      `${scorer} sanctionne ta défense sur cette grosse situation${assistedSuffix}.`,
+      `${scorer} transforme cette occasion nette pour l'équipe adverse${assistedSuffix}.`,
     ]);
   }
 
   return pickText([
-    `${scorer} trouve l’ouverture pour l'équipe adverse.`,
-    `${scorer} punit ta défense pour l'équipe adverse.`,
-    `${scorer} fait mouche pour l'équipe adverse.`,
+    `${scorer} trouve l’ouverture pour l'équipe adverse${assistedSuffix}.`,
+    `${scorer} punit ta défense pour l'équipe adverse${assistedSuffix}.`,
+    `${scorer} fait mouche pour l'équipe adverse${assistedSuffix}.`,
   ]);
 }
