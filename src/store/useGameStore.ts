@@ -21,6 +21,7 @@ import {
   heartbeatMultiplayerRoom,
   joinMultiplayerRoom,
   makeMultiplayerPick,
+  requestMultiplayerRematch,
   storeRoomMembership,
   startMultiplayerDraft,
 } from '../lib/multiplayer/rooms';
@@ -74,6 +75,7 @@ type GameState = {
   userPickPlayer: (playerId: number) => Promise<void>;
   aiPickTurn: () => void;
   playMatch: () => void;
+  requestCurrentMultiplayerRematch: () => Promise<void>;
   replayMatch: () => void;
   resetDraft: () => void;
 };
@@ -743,6 +745,43 @@ export const useGameStore = create<GameState>((set, get) => ({
       matchResult: simulateMatch(state.userTeam, state.aiTeam),
       currentStep: 'result',
     });
+  },
+  requestCurrentMultiplayerRematch: async () => {
+    const state = get();
+
+    if (state.mode !== 'multiplayer') {
+      return;
+    }
+
+    const roomId = state.multiplayerSetup.roomId;
+    const localSlot = state.multiplayerSetup.localSlot;
+
+    if (!roomId || !localSlot) {
+      return;
+    }
+
+    try {
+      const room = await requestMultiplayerRematch(roomId, localSlot);
+
+      set((currentState) => ({
+        mode: 'multiplayer',
+        rules: room.rules,
+        multiplayerSetup: {
+          ...currentState.multiplayerSetup,
+          room,
+          error: null,
+        },
+        ...hydrateMultiplayerRoom(room, currentState),
+      }));
+    } catch (error) {
+      set((currentState) => ({
+        multiplayerSetup: {
+          ...currentState.multiplayerSetup,
+          error:
+            error instanceof Error ? error.message : 'Impossible de lancer la revanche.',
+        },
+      }));
+    }
   },
   replayMatch: () => {
     const state = get();

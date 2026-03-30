@@ -70,6 +70,9 @@ export function HomePage() {
   const userPickPlayer = useGameStore((state) => state.userPickPlayer);
   const aiPickTurn = useGameStore((state) => state.aiPickTurn);
   const playMatch = useGameStore((state) => state.playMatch);
+  const requestCurrentMultiplayerRematch = useGameStore(
+    (state) => state.requestCurrentMultiplayerRematch,
+  );
   const replayMatch = useGameStore((state) => state.replayMatch);
   const resetDraft = useGameStore((state) => state.resetDraft);
 
@@ -386,6 +389,15 @@ export function HomePage() {
           opponentLabel={mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA'}
           startedAt={matchStartedAt}
           showReplayActions={mode !== 'multiplayer'}
+          showOnlineRematchAction={mode === 'multiplayer'}
+          onlineRematchRequested={
+            mode === 'multiplayer' &&
+            Boolean(
+              multiplayerSetup.localSlot &&
+                multiplayerSetup.room?.rematchReady?.[multiplayerSetup.localSlot],
+            )
+          }
+          onRequestRematch={requestCurrentMultiplayerRematch}
           onReplay={replayMatch}
           onResetDraft={resetDraft}
         />

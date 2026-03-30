@@ -50,6 +50,11 @@ export type MultiplayerMatchReadyState = {
   guest: boolean;
 };
 
+export type MultiplayerRematchReadyState = {
+  host: boolean;
+  guest: boolean;
+};
+
 export type MultiplayerRoom = {
   id: string;
   status: MultiplayerRoomStatus;
@@ -60,6 +65,7 @@ export type MultiplayerRoom = {
   rules: DraftRules;
   draftState: MultiplayerDraftState | null;
   matchReady: MultiplayerMatchReadyState | null;
+  rematchReady: MultiplayerRematchReadyState | null;
   matchResult: MultiplayerMatchResult | null;
   matchStartedAt: string | null;
   createdAt: string;

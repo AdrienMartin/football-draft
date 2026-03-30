@@ -10,6 +10,9 @@ type MatchResultCardProps = {
   opponentLabel?: string;
   startedAt?: string | null;
   showReplayActions?: boolean;
+  showOnlineRematchAction?: boolean;
+  onlineRematchRequested?: boolean;
+  onRequestRematch?: () => void;
   onReplay: () => void;
   onResetDraft: () => void;
 };
@@ -69,7 +72,7 @@ function getEventBadgeLabel(event: MatchEvent) {
     case 'chance':
       return 'Occasion';
     case 'save':
-      return 'Arret';
+      return 'Arrêt';
     case 'pressure':
       return 'Temps fort';
     case 'shot':
@@ -79,7 +82,7 @@ function getEventBadgeLabel(event: MatchEvent) {
     case 'cross':
       return 'Centre';
     case 'block':
-      return 'Contre def.';
+      return 'Contre déf.';
     default:
       return event.type;
   }
@@ -243,13 +246,13 @@ export function MatchResultCard({
   opponentLabel = 'Équipe adverse',
   startedAt = null,
   showReplayActions = true,
+  showOnlineRematchAction = false,
+  onlineRematchRequested = false,
+  onRequestRematch,
   onReplay,
   onResetDraft,
 }: MatchResultCardProps) {
-  const opponentTextParts = useMemo(
-    () => getOpponentTextParts(opponentLabel),
-    [opponentLabel],
-  );
+  const opponentTextParts = useMemo(() => getOpponentTextParts(opponentLabel), [opponentLabel]);
   const [minute, setMinute] = useState(0);
   const [scorePulse, setScorePulse] = useState(false);
   const [isHalfTime, setIsHalfTime] = useState(false);
@@ -480,13 +483,25 @@ export function MatchResultCard({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={onResetDraft}
-              className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-            >
-              Retour à l’accueil
-            </button>
+            <>
+              {showOnlineRematchAction && onRequestRematch ? (
+                <button
+                  type="button"
+                  onClick={onRequestRematch}
+                  disabled={onlineRematchRequested}
+                  className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+                >
+                  {onlineRematchRequested ? 'Revanche demandée' : 'Demander une revanche'}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={onResetDraft}
+                className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+              >
+                Retour à l’accueil
+              </button>
+            </>
           )}
         </div>
       </div>

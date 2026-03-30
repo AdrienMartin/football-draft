@@ -9,6 +9,7 @@ import type {
   MultiplayerMatchReadyState,
   MultiplayerMatchResult,
   MultiplayerPlayerSlot,
+  MultiplayerRematchReadyState,
   MultiplayerRoom,
 } from './types';
 
@@ -27,6 +28,7 @@ type MultiplayerRoomRow = {
   rules: DraftRules;
   draft_state: MultiplayerDraftState | null;
   match_ready: MultiplayerMatchReadyState | null;
+  rematch_ready: MultiplayerRematchReadyState | null;
   match_result: MultiplayerMatchResult | null;
   match_started_at: string | null;
   created_at: string;
@@ -38,6 +40,8 @@ const PLAYER_STALE_MS = 12000;
 const ROOM_ACTIVE_EXPIRATION_MS = 1000 * 60 * 60 * 6;
 const ROOM_FINISHED_EXPIRATION_MS = 1000 * 60 * 90;
 const ROOM_MEMBERSHIP_STORAGE_KEY = 'football-draft-room-memberships';
+const ROOM_SELECT_QUERY =
+  'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, rematch_ready, match_result, match_started_at, created_at, updated_at';
 
 type StoredRoomMembership = {
   slot: MultiplayerPlayerSlot;
@@ -138,6 +142,7 @@ function mapRoomRow(row: MultiplayerRoomRow): MultiplayerRoom {
     rules: row.rules,
     draftState: row.draft_state,
     matchReady: row.match_ready,
+    rematchReady: row.rematch_ready,
     matchResult: row.match_result,
     matchStartedAt: row.match_started_at,
     createdAt: row.created_at,
@@ -152,9 +157,7 @@ async function fetchRoomRow(roomId: string) {
 
   const { data, error } = await supabase
     .from('multiplayer_rooms')
-    .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
-    )
+    .select(ROOM_SELECT_QUERY)
     .eq('id', roomId)
     .single();
 
@@ -219,12 +222,11 @@ export async function createMultiplayerRoom({
       rules,
       draft_state: null,
       match_ready: null,
+      rematch_ready: null,
       match_result: null,
       match_started_at: null,
     })
-    .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
-    )
+    .select(ROOM_SELECT_QUERY)
     .single();
 
   if (error || !data) {
@@ -262,9 +264,7 @@ export async function joinMultiplayerRoom(roomId: string, guestName: string) {
       status: nextStatus,
     })
     .eq('id', roomId)
-    .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
-    )
+    .select(ROOM_SELECT_QUERY)
     .single();
 
   if (error || !data) {
@@ -299,13 +299,12 @@ export async function startMultiplayerDraft(roomId: string, players: Player[]) {
       status: 'draft',
       draft_state: buildInitialDraftState(draftPool),
       match_ready: null,
+      rematch_ready: null,
       match_result: null,
       match_started_at: null,
     })
     .eq('id', roomId)
-    .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
-    )
+    .select(ROOM_SELECT_QUERY)
     .single();
 
   if (error || !data) {
@@ -387,14 +386,13 @@ export async function makeMultiplayerPick(
       status: draftComplete ? 'match' : 'draft',
       draft_state: nextDraftState,
       match_ready: draftComplete ? { host: false, guest: false } : null,
+      rematch_ready: null,
       match_result: null,
       match_started_at: null,
     })
     .eq('id', roomId)
     .eq('status', 'draft')
-    .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
-    )
+    .select(ROOM_SELECT_QUERY)
     .single();
 
   if (error || !data) {
@@ -434,11 +432,10 @@ export async function confirmMultiplayerMatchStart(
       .from('multiplayer_rooms')
       .update({
         match_ready: nextReady,
+        rematch_ready: null,
       })
       .eq('id', roomId)
-      .select(
-        'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
-      )
+      .select(ROOM_SELECT_QUERY)
       .single();
 
     if (error || !data) {
@@ -457,17 +454,77 @@ export async function confirmMultiplayerMatchStart(
     .update({
       status: 'finished',
       match_ready: nextReady,
+      rematch_ready: null,
       match_result: roomResult,
       match_started_at: matchStartedAt,
     })
     .eq('id', roomId)
-    .select(
-      'id, status, host_name, guest_name, host_connected_at, guest_connected_at, rules, draft_state, match_ready, match_result, match_started_at, created_at, updated_at',
-    )
+    .select(ROOM_SELECT_QUERY)
     .single();
 
   if (error || !data) {
     throw new Error(toMultiplayerErrorMessage(error, 'Impossible de lancer la simulation du match.'));
+  }
+
+  return mapRoomRow(data as MultiplayerRoomRow);
+}
+
+export async function requestMultiplayerRematch(
+  roomId: string,
+  slot: MultiplayerPlayerSlot,
+) {
+  if (!supabase) {
+    throw new Error("Supabase n'est pas configuré.");
+  }
+
+  const room = await getMultiplayerRoom(roomId);
+
+  if (room.status !== 'finished' || !room.matchResult || !room.draftState) {
+    throw new Error('La revanche n’est pas disponible pour le moment.');
+  }
+
+  const currentReady = room.rematchReady ?? { host: false, guest: false };
+  const nextReady: MultiplayerRematchReadyState = {
+    ...currentReady,
+    [slot]: true,
+  };
+
+  if (!nextReady[getOtherSlot(slot)]) {
+    const { data, error } = await supabase
+      .from('multiplayer_rooms')
+      .update({
+        rematch_ready: nextReady,
+      })
+      .eq('id', roomId)
+      .select(ROOM_SELECT_QUERY)
+      .single();
+
+    if (error || !data) {
+      throw new Error(
+        toMultiplayerErrorMessage(error, "Impossible d'enregistrer ta demande de revanche."),
+      );
+    }
+
+    return mapRoomRow(data as MultiplayerRoomRow);
+  }
+
+  const { data, error } = await supabase
+    .from('multiplayer_rooms')
+    .update({
+      status: 'match',
+      match_ready: { host: false, guest: false },
+      rematch_ready: null,
+      match_result: null,
+      match_started_at: null,
+    })
+    .eq('id', roomId)
+    .select(ROOM_SELECT_QUERY)
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      toMultiplayerErrorMessage(error, 'Impossible de préparer la revanche.'),
+    );
   }
 
   return mapRoomRow(data as MultiplayerRoomRow);

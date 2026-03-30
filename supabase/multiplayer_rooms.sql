@@ -8,6 +8,7 @@ create table if not exists public.multiplayer_rooms (
   rules jsonb not null default '{}'::jsonb,
   draft_state jsonb,
   match_ready jsonb,
+  rematch_ready jsonb,
   match_result jsonb,
   match_started_at timestamptz,
   created_at timestamptz not null default now(),
@@ -19,6 +20,9 @@ add column if not exists draft_state jsonb;
 
 alter table public.multiplayer_rooms
 add column if not exists match_ready jsonb;
+
+alter table public.multiplayer_rooms
+add column if not exists rematch_ready jsonb;
 
 alter table public.multiplayer_rooms
 add column if not exists match_result jsonb;
