@@ -22,8 +22,9 @@ import { useGameStore } from '../store/useGameStore';
 
 type SortOption = 'rating-desc' | 'name-asc' | 'name-desc';
 
+const PLAYERS_PER_PAGE = 5;
+
 export function HomePage() {
-  const PLAYERS_PER_PAGE = 5;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<'ALL' | PlayerRole>('ALL');
@@ -85,16 +86,21 @@ export function HomePage() {
     return params.get('roomId');
   }, []);
 
+  const opponentLabel = mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA';
   const requiredRoles = getMissingRequiredRoles(userTeam);
+  const currentTeamValue = userTeam.reduce((sum, player) => sum + player.value, 0);
+
   const eligiblePlayers = availablePlayers.filter((player) =>
     canDraftPlayer(userTeam, player, rules.maxTeamValue),
   );
+
   const availableRoleFilters: Array<'ALL' | PlayerRole> = [
     'ALL',
     ...(['GK', 'DEF', 'MID', 'FWD'] as PlayerRole[]).filter((role) =>
       eligiblePlayers.some((player) => getPlayerRole(player.position) === role),
     ),
   ];
+
   const nationalityOptions = [...new Set(eligiblePlayers.map((player) => player.nationality))].sort(
     (a, b) => a.localeCompare(b),
   );
@@ -106,14 +112,17 @@ export function HomePage() {
     selectedRole === 'ALL'
       ? eligiblePlayers
       : eligiblePlayers.filter((player) => getPlayerRole(player.position) === selectedRole);
+
   const nationalityFilteredPlayers =
     selectedNationality === 'ALL'
       ? roleFilteredPlayers
       : roleFilteredPlayers.filter((player) => player.nationality === selectedNationality);
+
   const leagueFilteredPlayers =
     selectedLeague === 'ALL'
       ? nationalityFilteredPlayers
       : nationalityFilteredPlayers.filter((player) => player.league === selectedLeague);
+
   const searchFilteredPlayers = searchQuery.trim()
     ? leagueFilteredPlayers.filter((player) =>
         player.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
@@ -313,8 +322,8 @@ export function HomePage() {
             title={mode === 'multiplayer' ? 'Draft 1v1' : 'Draft joueur contre IA'}
             description={
               mode === 'multiplayer'
-                ? 'Chacun choisit 5 joueurs à tour de rôle jusqu’à compléter son équipe.'
-                : 'Choisis 5 joueurs à tour de rôle face à l’IA pour composer ton équipe.'
+                ? 'Chacun choisit 5 joueurs à tour de rôle jusqu à compléter son équipe.'
+                : 'Choisis 5 joueurs à tour de rôle face à l IA pour composer ton équipe.'
             }
           />
 
@@ -347,7 +356,7 @@ export function HomePage() {
             onSelectSort={setSortOption}
             requiredRoles={requiredRoles}
             maxTeamValue={rules.maxTeamValue}
-            currentTeamValue={userTeam.reduce((sum, player) => sum + player.value, 0)}
+            currentTeamValue={currentTeamValue}
             canPick={!draftComplete && currentTurn === 'user'}
             onPick={userPickPlayer}
           />
@@ -361,7 +370,7 @@ export function HomePage() {
           />
 
           <DraftTeamPanel
-            title={mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA'}
+            title={opponentLabel}
             players={aiTeam}
             accentClassName="bg-sky-400/15 text-sky-100"
           />
@@ -376,7 +385,7 @@ export function HomePage() {
         <MatchPreview
           userTeam={userTeam}
           aiTeam={aiTeam}
-          opponentLabel={mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA'}
+          opponentLabel={opponentLabel}
           onPlay={playMatch}
         />
       )}
@@ -386,7 +395,7 @@ export function HomePage() {
           result={matchResult}
           userTeam={userTeam}
           aiTeam={aiTeam}
-          opponentLabel={mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA'}
+          opponentLabel={opponentLabel}
           startedAt={matchStartedAt}
           showReplayActions={mode !== 'multiplayer'}
           showOnlineRematchAction={mode === 'multiplayer'}
