@@ -31,6 +31,7 @@ export function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNationality, setSelectedNationality] = useState('ALL');
   const [selectedLeague, setSelectedLeague] = useState('ALL');
+  const [selectedClub, setSelectedClub] = useState('ALL');
   const [sortOption, setSortOption] = useState<SortOption>('rating-desc');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -107,6 +108,13 @@ export function HomePage() {
   const leagueOptions = [...new Set(eligiblePlayers.map((player) => player.league))].sort((a, b) =>
     a.localeCompare(b),
   );
+  const clubOptions = [
+    ...new Set(
+      eligiblePlayers
+        .filter((player) => selectedLeague === 'ALL' || player.league === selectedLeague)
+        .map((player) => player.club),
+    ),
+  ].sort((a, b) => a.localeCompare(b));
 
   const roleFilteredPlayers =
     selectedRole === 'ALL'
@@ -123,11 +131,16 @@ export function HomePage() {
       ? nationalityFilteredPlayers
       : nationalityFilteredPlayers.filter((player) => player.league === selectedLeague);
 
+  const clubFilteredPlayers =
+    selectedClub === 'ALL'
+      ? leagueFilteredPlayers
+      : leagueFilteredPlayers.filter((player) => player.club === selectedClub);
+
   const searchFilteredPlayers = searchQuery.trim()
-    ? leagueFilteredPlayers.filter((player) =>
+    ? clubFilteredPlayers.filter((player) =>
         player.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
       )
-    : leagueFilteredPlayers;
+    : clubFilteredPlayers;
 
   const sortedPlayers = [...searchFilteredPlayers].sort((left, right) => {
     if (sortOption === 'name-asc') {
@@ -170,12 +183,24 @@ export function HomePage() {
   }, [leagueOptions, selectedLeague]);
 
   useEffect(() => {
+    if (selectedLeague === 'ALL') {
+      setSelectedClub('ALL');
+      return;
+    }
+
+    if (selectedClub !== 'ALL' && !clubOptions.includes(selectedClub)) {
+      setSelectedClub('ALL');
+    }
+  }, [clubOptions, selectedClub, selectedLeague]);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [
     searchQuery,
     selectedRole,
     selectedNationality,
     selectedLeague,
+    selectedClub,
     sortOption,
     sortedPlayers.length,
   ]);
@@ -352,6 +377,9 @@ export function HomePage() {
             leagueOptions={leagueOptions}
             selectedLeague={selectedLeague}
             onSelectLeague={setSelectedLeague}
+            clubOptions={clubOptions}
+            selectedClub={selectedClub}
+            onSelectClub={setSelectedClub}
             sortOption={sortOption}
             onSelectSort={setSortOption}
             requiredRoles={requiredRoles}

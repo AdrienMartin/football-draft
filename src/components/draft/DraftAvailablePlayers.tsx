@@ -22,6 +22,9 @@ type DraftAvailablePlayersProps = {
   leagueOptions: string[];
   selectedLeague: string;
   onSelectLeague: (value: string) => void;
+  clubOptions: string[];
+  selectedClub: string;
+  onSelectClub: (value: string) => void;
   sortOption: 'rating-desc' | 'name-asc' | 'name-desc';
   onSelectSort: (value: 'rating-desc' | 'name-asc' | 'name-desc') => void;
   requiredRoles: PlayerRole[];
@@ -50,6 +53,9 @@ export function DraftAvailablePlayers({
   leagueOptions,
   selectedLeague,
   onSelectLeague,
+  clubOptions,
+  selectedClub,
+  onSelectClub,
   sortOption,
   onSelectSort,
   requiredRoles,
@@ -107,7 +113,7 @@ export function DraftAvailablePlayers({
         </div>
       </div>
 
-      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <label className="text-sm text-slate-300 xl:col-span-1">
           <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
             Recherche
@@ -161,6 +167,27 @@ export function DraftAvailablePlayers({
           >
             <option value="ALL">Tous</option>
             {leagueOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="text-sm text-slate-300">
+          <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+            Club
+          </span>
+          <select
+            value={selectedClub}
+            onChange={(event) => onSelectClub(event.target.value)}
+            disabled={selectedLeague === 'ALL' || clubOptions.length === 0}
+            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="ALL">
+              {selectedLeague === 'ALL' ? 'Choisis un championnat' : 'Tous'}
+            </option>
+            {clubOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
