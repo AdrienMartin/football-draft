@@ -90,13 +90,14 @@ function getEventBadgeLabel(event: MatchEvent) {
 }
 
 function buildScorerSummary(events: MatchEvent[]) {
-  const goals = events.filter((event) => event.type === 'goal' && event.scorer);
+  const goals = events.filter((event) => event.type === 'goal');
   const userScorers = new Map<string, number>();
   const aiScorers = new Map<string, number>();
 
   goals.forEach((event) => {
+    const scorerName = event.scorer?.trim() || 'Buteur non identifie';
     const scorers = event.team === 'user' ? userScorers : aiScorers;
-    scorers.set(event.scorer!, (scorers.get(event.scorer!) ?? 0) + 1);
+    scorers.set(scorerName, (scorers.get(scorerName) ?? 0) + 1);
   });
 
   return {

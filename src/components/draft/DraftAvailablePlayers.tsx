@@ -4,7 +4,6 @@ import type { Player } from '../../types/player';
 import { PlayerCard } from '../players/PlayerCard';
 
 type DraftAvailablePlayersProps = {
-  players: Player[];
   filteredPlayers: Player[];
   totalFilteredPlayers: number;
   currentPage: number;
@@ -35,7 +34,6 @@ type DraftAvailablePlayersProps = {
 };
 
 export function DraftAvailablePlayers({
-  players,
   filteredPlayers,
   totalFilteredPlayers,
   currentPage,
@@ -67,25 +65,12 @@ export function DraftAvailablePlayers({
   return (
     <section className="rounded-3xl border border-white/10 bg-slate-950/50 p-4 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h3 className="text-xl font-semibold text-white">Joueurs disponibles</h3>
-          <p className="mt-1 text-sm text-slate-400">
-            {totalFilteredPlayers} choix valides sur {formatPlayerCount(players.length)}.
-          </p>
-        </div>
-
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
-          <p className="font-medium text-white">Contraintes de draft</p>
-          <p className="mt-2">1 GK minimum, puis 2 joueurs maximum par ligne.</p>
-          {maxTeamValue !== null && (
-            <p className="mt-2">
-              Budget : {currentTeamValue} / {maxTeamValue} MEUR
-            </p>
-          )}
-          <p className="mt-2">
+          {maxTeamValue !== null && <p>Budget : {currentTeamValue} / {maxTeamValue} MEUR</p>}
+          <p className={maxTeamValue !== null ? 'mt-2' : undefined}>
             {requiredRoles.length > 0
-              ? `Rôles encore obligatoires : ${requiredRoles.join(', ')}`
-              : 'Tous les rôles minimums sont déjà couverts.'}
+              ? `${requiredRoles.length > 1 ? 'Postes manquants' : 'Poste manquant'} : ${requiredRoles.join(', ')}`
+              : 'Tous les postes minimum sont deja couverts.'}
           </p>
         </div>
       </div>
@@ -129,10 +114,10 @@ export function DraftAvailablePlayers({
               <button
                 type="button"
                 onClick={() => onSearchQueryChange('')}
-                aria-label="Réinitialiser la recherche"
+                aria-label="Reinitialiser la recherche"
                 className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
               >
-                ×
+                x
               </button>
             )}
           </div>
@@ -140,7 +125,7 @@ export function DraftAvailablePlayers({
 
         <label className="text-sm text-slate-300">
           <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-            Nationalité
+            Nationalite
           </span>
           <select
             value={selectedNationality}
@@ -206,16 +191,16 @@ export function DraftAvailablePlayers({
             }
             className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
           >
-            <option value="rating-desc">Note générale</option>
-            <option value="name-asc">Alphabétique A-Z</option>
-            <option value="name-desc">Alphabétique Z-A</option>
+            <option value="rating-desc">Note generale</option>
+            <option value="name-asc">Alphabetique A-Z</option>
+            <option value="name-desc">Alphabetique Z-A</option>
           </select>
         </label>
       </div>
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-400">
-          Page {currentPage} sur {totalPages}
+          {formatPlayerCount(totalFilteredPlayers)} • Page {currentPage} sur {totalPages}
         </p>
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <button
@@ -224,7 +209,7 @@ export function DraftAvailablePlayers({
             disabled={currentPage === 1}
             className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Précédent
+            Precedent
           </button>
           <button
             type="button"

@@ -1,5 +1,4 @@
 import {
-  formatPlayerCount,
   formatTeamValue,
   getNationalityFlagCode,
   getNationalityLabel,
@@ -33,8 +32,8 @@ export function DraftTeamPanel({
         <div
           className={`rounded-2xl px-3 py-2 text-right text-xs font-semibold ${accentClassName}`}
         >
-          <p>{formatPlayerCount(players.length)}</p>
-          <p className="mt-1 opacity-80">{formatTeamValue(totalValue)}</p>
+          <p className="text-lg font-bold text-white">{formatTeamValue(totalValue)}</p>
+          <p className="mt-1 opacity-80">Valeur totale</p>
         </div>
       </div>
 

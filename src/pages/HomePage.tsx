@@ -359,7 +359,6 @@ export function HomePage() {
           )}
 
           <DraftAvailablePlayers
-            players={availablePlayers}
             filteredPlayers={paginatedPlayers}
             totalFilteredPlayers={sortedPlayers.length}
             currentPage={currentPage}
@@ -413,6 +412,7 @@ export function HomePage() {
         <MatchPreview
           userTeam={userTeam}
           aiTeam={aiTeam}
+          isMultiplayer={mode === 'multiplayer'}
           opponentLabel={opponentLabel}
           onPlay={playMatch}
         />

@@ -300,6 +300,18 @@ function getNamedPlayer(team: TeamContext, name?: string) {
   return team.players.find((player) => player.name === name);
 }
 
+function getFallbackAttacker(team: TeamContext, excluded?: string) {
+  const fallbackPlayers = team.players
+    .filter((player) => getPlayerRole(player.position) !== 'GK' && player.name !== excluded)
+    .sort((left, right) => right.rating - left.rating);
+
+  return fallbackPlayers[0]?.name ?? team.players.find((player) => player.name !== excluded)?.name;
+}
+
+function pickReliablePlayerName(team: TeamContext, pool: WeightedName[], excluded?: string) {
+  return pickWeightedName(pool, excluded) ?? getFallbackAttacker(team, excluded);
+}
+
 function buildLiveEvent(
   minute: number,
   team: MatchTeam,
@@ -916,6 +928,13 @@ function resolveFinalThirdPhase(state: SequenceState) {
             ? randomBetween(0.06, 0.14)
             : randomBetween(0.05, 0.12),
       );
+      const speculativeShooter =
+        (state.attackMode === 'wide'
+          ? pickReliablePlayerName(state.attackingTeam, state.attackingTeam.wideScorers)
+          : state.attackMode === 'transition'
+            ? pickReliablePlayerName(state.attackingTeam, state.attackingTeam.transitionScorers)
+            : pickReliablePlayerName(state.attackingTeam, state.attackingTeam.centralScorers)) ??
+        pickReliablePlayerName(state.attackingTeam, state.attackingTeam.scorers);
 
       addEvent(
         state.events,
@@ -928,23 +947,12 @@ function resolveFinalThirdPhase(state: SequenceState) {
             speculativeXg,
             state.events,
             state.attackMode,
-            (state.attackMode === 'wide'
-              ? pickWeightedName(state.attackingTeam.wideScorers)
-              : state.attackMode === 'transition'
-                ? pickWeightedName(state.attackingTeam.transitionScorers)
-                : pickWeightedName(state.attackingTeam.centralScorers)) ??
-              pickWeightedName(state.attackingTeam.scorers),
+            speculativeShooter,
           ),
           state.score,
           {
             xg: speculativeXg,
-            scorer:
-              (state.attackMode === 'wide'
-                ? pickWeightedName(state.attackingTeam.wideScorers)
-                : state.attackMode === 'transition'
-                  ? pickWeightedName(state.attackingTeam.transitionScorers)
-                  : pickWeightedName(state.attackingTeam.centralScorers)) ??
-              pickWeightedName(state.attackingTeam.scorers),
+            scorer: speculativeShooter,
             assister: actionCreator,
           },
         ),
@@ -972,7 +980,9 @@ function resolveBoxPhase(state: SequenceState) {
         ? state.attackingTeam.transitionScorers
         : state.attackingTeam.centralScorers;
   const shotTaker =
-    pickWeightedName(scorers) ?? pickWeightedName(state.attackingTeam.scorers) ?? 'Un attaquant';
+    pickReliablePlayerName(state.attackingTeam, scorers) ??
+    pickReliablePlayerName(state.attackingTeam, state.attackingTeam.scorers) ??
+    'Un attaquant';
   const shotTakerPlayer = getNamedPlayer(state.attackingTeam, shotTaker);
   const defendingGoalkeeper = state.defendingTeam.players.find(
     (player) => getPlayerRole(player.position) === 'GK',

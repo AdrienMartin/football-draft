@@ -303,6 +303,7 @@ describe('simulateMatch balancing', () => {
       result.events.forEach((event) => {
         if (event.type === 'goal') {
           expect(event.scorer).toBeTruthy();
+          expect(event.scorer).not.toBe('Un attaquant');
           expect(event.scorer).not.toBe(event.assister);
         }
 
