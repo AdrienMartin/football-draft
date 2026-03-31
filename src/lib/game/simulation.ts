@@ -640,6 +640,7 @@ function resolveBuildPhase(state: SequenceState) {
           state.attackingTeam.label,
           state.score[state.attackingTeam.label],
           state.score[state.defendingTeam.label],
+          state.events,
         ),
         state.score,
         { assister: builder },
@@ -673,7 +674,7 @@ function resolveMidfieldPhase(state: SequenceState) {
         state.minute,
         state.attackingTeam.label,
         'counter',
-        buildCounterText(state.attackingTeam.label, state.minute),
+        buildCounterText(state.attackingTeam.label, state.minute, state.events),
         state.score,
         { assister: carrier },
       ),
@@ -712,7 +713,7 @@ function resolveFinalThirdPhase(state: SequenceState) {
         state.minute,
         state.attackingTeam.label,
         'cross',
-        buildCrossText(state.attackingTeam.label),
+        buildCrossText(state.attackingTeam.label, actionCreator, state.events),
         state.score,
         { assister: actionCreator },
       ),
@@ -727,7 +728,7 @@ function resolveFinalThirdPhase(state: SequenceState) {
           state.minute,
           state.defendingTeam.label,
           'block',
-          buildBlockText(state.attackingTeam.label),
+          buildBlockText(state.attackingTeam.label, state.events, state.attackMode),
           state.score,
           { xg: 0.03, assister: actionCreator },
         ),
@@ -749,7 +750,18 @@ function resolveFinalThirdPhase(state: SequenceState) {
           state.minute + 1,
           state.attackingTeam.label,
           'shot',
-          buildShotText(state.attackingTeam.label, speculativeXg),
+          buildShotText(
+            state.attackingTeam.label,
+            speculativeXg,
+            state.events,
+            state.attackMode,
+            (state.attackMode === 'wide'
+              ? pickWeightedName(state.attackingTeam.wideScorers)
+              : state.attackMode === 'transition'
+                ? pickWeightedName(state.attackingTeam.transitionScorers)
+                : pickWeightedName(state.attackingTeam.centralScorers)) ??
+              pickWeightedName(state.attackingTeam.scorers),
+          ),
           state.score,
           {
             xg: speculativeXg,
@@ -808,7 +820,14 @@ function resolveBoxPhase(state: SequenceState) {
       state.minute,
       state.attackingTeam.label,
       'chance',
-      buildChanceText(state.attackingTeam.label, chanceQuality, state.minute),
+      buildChanceText(
+        state.attackingTeam.label,
+        chanceQuality,
+        state.minute,
+        state.events,
+        state.attackMode,
+        actionCreator,
+      ),
       state.score,
       { xg: shotXg, assister: actionCreator },
     ),
@@ -826,7 +845,7 @@ function resolveBoxPhase(state: SequenceState) {
         state.minute + 1,
         state.attackingTeam.label,
         'block',
-        buildBlockText(state.attackingTeam.label),
+        buildBlockText(state.attackingTeam.label, state.events, state.attackMode),
         state.score,
         { xg: roundXg(shotXg * 0.72), assister: actionCreator },
       ),
@@ -842,7 +861,18 @@ function resolveBoxPhase(state: SequenceState) {
         state.minute + 1,
         state.attackingTeam.label,
         'shot',
-        buildShotText(state.attackingTeam.label, shotXg),
+        buildShotText(
+          state.attackingTeam.label,
+          shotXg,
+          state.events,
+          state.attackMode,
+          (state.attackMode === 'wide'
+            ? pickWeightedName(state.attackingTeam.wideScorers)
+            : state.attackMode === 'transition'
+              ? pickWeightedName(state.attackingTeam.transitionScorers)
+              : pickWeightedName(state.attackingTeam.centralScorers)) ??
+            pickWeightedName(state.attackingTeam.scorers),
+        ),
         state.score,
         {
           xg: shotXg,
@@ -868,23 +898,25 @@ function resolveBoxPhase(state: SequenceState) {
     0.8,
   );
   if (Math.random() > goalChance) {
+    const savedShotTaker =
+      (state.attackMode === 'wide'
+        ? pickWeightedName(state.attackingTeam.wideScorers)
+        : state.attackMode === 'transition'
+          ? pickWeightedName(state.attackingTeam.transitionScorers)
+          : pickWeightedName(state.attackingTeam.centralScorers)) ??
+      pickWeightedName(state.attackingTeam.scorers);
+
     addEvent(
       state.events,
       buildLiveEvent(
         state.minute + 1,
         state.attackingTeam.label,
         'save',
-        buildSaveText(state.attackingTeam.label, shotXg),
+        buildSaveText(state.attackingTeam.label, shotXg, state.events, savedShotTaker),
         state.score,
         {
           xg: shotXg,
-          scorer:
-            (state.attackMode === 'wide'
-              ? pickWeightedName(state.attackingTeam.wideScorers)
-              : state.attackMode === 'transition'
-                ? pickWeightedName(state.attackingTeam.transitionScorers)
-                : pickWeightedName(state.attackingTeam.centralScorers)) ??
-            pickWeightedName(state.attackingTeam.scorers),
+          scorer: savedShotTaker,
           assister: actionCreator,
         },
       ),
@@ -922,7 +954,15 @@ function resolveBoxPhase(state: SequenceState) {
       state.minute + 1,
       state.attackingTeam.label,
       'goal',
-      buildGoalText(state.attackingTeam.label, scorer, state.minute + 1, shotXg, assister),
+      buildGoalText(
+        state.attackingTeam.label,
+        scorer,
+        state.minute + 1,
+        shotXg,
+        assister,
+        state.events,
+        state.attackMode,
+      ),
       state.score,
       {
         scorer,

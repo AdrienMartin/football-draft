@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MatchEvent, MatchResult } from '../../lib/game/simulation';
+import { buildFullTimeSummary, buildHalfTimeSummary } from '../../lib/game/matchCommentary';
 import type { Player } from '../../types/player';
 import { TeamPitch } from './TeamPitch';
 
@@ -192,6 +193,38 @@ function buildVisibleStats(result: MatchResult, visibleEvents: MatchEvent[]) {
   };
 }
 
+function toNumericCommentaryStats(stats: ReturnType<typeof buildVisibleStats>['user']) {
+  return {
+    ...stats,
+    xg: Number(stats.xg),
+  };
+}
+
+function MatchSummaryCard({
+  title,
+  lines,
+}: {
+  title: string;
+  lines: string[];
+}) {
+  if (lines.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-4">
+      <p className="text-sm font-semibold text-amber-100">{title}</p>
+      <div className="mt-2 space-y-1">
+        {lines.map((line) => (
+          <p key={line} className="text-sm text-slate-100">
+            {line}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MatchStatsTable({
   result,
   visibleEvents,
@@ -339,6 +372,44 @@ export function MatchResultCard({
 
   const hasStarted = startedAt ? Date.now() >= new Date(startedAt).getTime() : true;
   const isFinished = minute >= MATCH_DURATION;
+  const halfTimeEvents = useMemo(
+    () => result.events.filter((event) => event.minute <= HALF_TIME_MINUTE),
+    [result.events],
+  );
+  const halfTimeLiveScore = halfTimeEvents.reduce(
+    (_score, event) => ({
+      user: event.userScore,
+      ai: event.aiScore,
+    }),
+    { user: 0, ai: 0 },
+  );
+  const halfTimeStats = useMemo(
+    () => buildVisibleStats(result, halfTimeEvents),
+    [halfTimeEvents, result],
+  );
+  const halfTimeSummary = useMemo(
+    () =>
+      buildHalfTimeSummary({
+        userScore: halfTimeLiveScore.user,
+        aiScore: halfTimeLiveScore.ai,
+        userStats: toNumericCommentaryStats(halfTimeStats.user),
+        aiStats: toNumericCommentaryStats(halfTimeStats.ai),
+        userSummary: result.userSummary,
+        aiSummary: result.aiSummary,
+      }),
+    [halfTimeLiveScore.ai, halfTimeLiveScore.user, halfTimeStats.ai, halfTimeStats.user, result.aiSummary, result.userSummary],
+  );
+  const fullTimeSummary = useMemo(
+    () =>
+      buildFullTimeSummary({
+        userScore: result.userScore,
+        aiScore: result.aiScore,
+        userStats: result.userStats,
+        aiStats: result.aiStats,
+        highlights: result.highlights,
+      }),
+    [result.aiScore, result.aiStats, result.highlights, result.userScore, result.userStats],
+  );
   const title = !hasStarted
     ? 'Coup d’envoi imminent'
     : isFinished
@@ -457,6 +528,10 @@ export function MatchResultCard({
                 Le match vient de commencer. Attends les premières actions...
               </p>
             )}
+
+            {isHalfTime ? <MatchSummaryCard title="Mi-temps" lines={halfTimeSummary} /> : null}
+
+            {isFinished ? <MatchSummaryCard title="Fin du match" lines={fullTimeSummary} /> : null}
 
             {orderedVisibleEvents.map((event) => {
               const styles = getEventStyle(event);
