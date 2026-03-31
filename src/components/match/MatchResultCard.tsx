@@ -19,9 +19,9 @@ type MatchResultCardProps = {
 
 const MATCH_DURATION = 90;
 const MINUTE_STEP = 1;
-const TICK_MS = 100;
+const TICK_MS = 140;
 const HALF_TIME_MINUTE = 45;
-const HALF_TIME_PAUSE_MS = 2000;
+const HALF_TIME_PAUSE_MS = 2500;
 
 function getEventStyle(event: MatchEvent) {
   if (event.type === 'goal') {
@@ -160,16 +160,16 @@ function roundXg(value: number) {
   return (Math.round(value * 100) / 100).toFixed(2);
 }
 
+function isCountedShotEvent(event: MatchEvent) {
+  return event.type === 'shot' || event.type === 'save' || event.type === 'goal' || event.type === 'block';
+}
+
 function buildVisibleStats(result: MatchResult, visibleEvents: MatchEvent[]) {
   const userShotEvents = visibleEvents.filter(
-    (event) =>
-      event.team === 'user' &&
-      (event.type === 'shot' || event.type === 'save' || event.type === 'goal'),
+    (event) => event.team === 'user' && isCountedShotEvent(event),
   );
   const aiShotEvents = visibleEvents.filter(
-    (event) =>
-      event.team === 'ai' &&
-      (event.type === 'shot' || event.type === 'save' || event.type === 'goal'),
+    (event) => event.team === 'ai' && isCountedShotEvent(event),
   );
 
   return {
@@ -395,6 +395,49 @@ export function MatchResultCard({
         <TeamPitch title={opponentTextParts.cardLabel} players={aiTeam} side="right" compact />
       </div>
 
+      {isFinished ? (
+        <div className="mt-6 flex flex-wrap gap-3">
+          {showReplayActions ? (
+            <>
+              <button
+                type="button"
+                onClick={onReplay}
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+              >
+                Rejouer le match
+              </button>
+              <button
+                type="button"
+                onClick={onResetDraft}
+                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Nouvelle draft
+              </button>
+            </>
+          ) : (
+            <>
+              {showOnlineRematchAction && onRequestRematch ? (
+                <button
+                  type="button"
+                  onClick={onRequestRematch}
+                  disabled={onlineRematchRequested}
+                  className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+                >
+                  {onlineRematchRequested ? 'Revanche demandée' : 'Demander une revanche'}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={onResetDraft}
+                className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+              >
+                Retour à l’accueil
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
+
       <div className="mt-6 space-y-6">
         <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
           <div className="flex items-center justify-between gap-3">
@@ -464,46 +507,6 @@ export function MatchResultCard({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          {showReplayActions ? (
-            <>
-              <button
-                type="button"
-                onClick={onReplay}
-                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
-              >
-                Rejouer le match
-              </button>
-              <button
-                type="button"
-                onClick={onResetDraft}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Nouvelle draft
-              </button>
-            </>
-          ) : (
-            <>
-              {showOnlineRematchAction && onRequestRematch ? (
-                <button
-                  type="button"
-                  onClick={onRequestRematch}
-                  disabled={onlineRematchRequested}
-                  className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
-                >
-                  {onlineRematchRequested ? 'Revanche demandée' : 'Demander une revanche'}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={onResetDraft}
-                className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-              >
-                Retour à l’accueil
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </section>
   );

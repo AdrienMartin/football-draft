@@ -102,6 +102,15 @@ function getRoleFillPriority(team: Player[], candidate: Player) {
   const counts = getTeamRoleCounts(team);
   const role = getPlayerRole(candidate.position);
   const missingRoles = getMissingRequiredRoles(team);
+  const teamSize = team.length;
+
+  if (teamSize <= 1) {
+    if (missingRoles.includes(role)) {
+      return counts[role] === 0 ? 8 : 5;
+    }
+
+    return counts[role] === 0 ? 4 : 0;
+  }
 
   if (missingRoles.includes(role)) {
     return counts[role] === 0 ? 18 : 12;
@@ -308,19 +317,55 @@ function scoreAiCandidate(
 ) {
   const role = getPlayerRole(candidate.position);
   const counts = getTeamRoleCounts(team);
+  const teamSize = team.length;
+  const topAvailableRating = remainingPlayers.reduce(
+    (best, player) => Math.max(best, player.rating),
+    0,
+  );
   const roleFillPriority = getRoleFillPriority(team, candidate);
   const roleProfileScore = getRoleProfileScore(candidate);
   const valueEfficiency = candidate.value > 0 ? candidate.rating / candidate.value : candidate.rating;
   const budgetDiscipline = getBudgetDisciplineScore(team, candidate, remainingPlayers, maxTeamValue);
   const balancePenalty = counts[role] >= 1 && getMissingRequiredRoles(team).length > 0 ? -3 : 0;
+  const rawQualityScore = candidate.rating * 2.5 + roleProfileScore * 0.28;
+  const efficiencyWeight = maxTeamValue === null ? 0.12 : 4.5;
+  const starBias =
+    candidate.rating >= 84
+      ? 12
+      : candidate.rating >= 80
+        ? 6
+        : candidate.rating <= 68
+          ? -12
+          : 0;
+  const earlyGoalkeeperPenalty =
+    maxTeamValue === null && role === 'GK' && teamSize <= 1 ? -18 : 0;
+  const earlySecondGoalkeeperPenalty =
+    maxTeamValue === null && role === 'GK' && teamSize === 2 ? -8 : 0;
+  const eliteGapPenalty =
+    maxTeamValue === null && candidate.rating <= topAvailableRating - 8
+      ? -16
+      : maxTeamValue === null && candidate.rating <= topAvailableRating - 5
+        ? -8
+        : 0;
+  const premiumOutfieldBias =
+    maxTeamValue === null &&
+    teamSize <= 1 &&
+    role !== 'GK' &&
+    candidate.rating >= topAvailableRating - 2
+      ? 8
+      : 0;
 
   return (
-    candidate.rating * 1.35 +
-    roleProfileScore * 0.22 +
+    rawQualityScore +
     roleFillPriority +
-    valueEfficiency * 7 +
+    valueEfficiency * efficiencyWeight +
     budgetDiscipline +
-    balancePenalty
+    balancePenalty +
+    starBias +
+    earlyGoalkeeperPenalty +
+    earlySecondGoalkeeperPenalty +
+    eliteGapPenalty +
+    premiumOutfieldBias
   );
 }
 

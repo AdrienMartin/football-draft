@@ -1,3 +1,4 @@
+import type { Player } from '../../types/player';
 import { getPlayerRole } from './draft';
 import {
   buildBlockText,
@@ -10,7 +11,6 @@ import {
   buildSaveText,
   buildShotText,
 } from './matchCommentary';
-import type { Player } from '../../types/player';
 
 export type MatchSideSummary = {
   attack: number;
@@ -56,299 +56,182 @@ export type MatchResult = {
   events: MatchEvent[];
 };
 
-type TeamContext = {
-  label: 'user' | 'ai';
-  summary: MatchSideSummary;
-  scorers: string[];
-  creators: string[];
-  centralScorers: string[];
-  transitionScorers: string[];
-  wideScorers: string[];
-  centralCreators: string[];
-  wideCreators: string[];
-  transitionCreators: string[];
-  centralBias: number;
-  wideBias: number;
-  transitionBias: number;
+type MatchTeam = 'user' | 'ai';
+type AttackMode = 'central' | 'wide' | 'transition';
+
+type WeightedName = {
+  name: string;
+  weight: number;
 };
 
-const MATCH_SEGMENTS = [4, 9, 14, 20, 26, 33, 40, 48, 56, 64, 72, 79, 85, 89];
+type TeamContext = {
+  label: MatchTeam;
+  summary: MatchSideSummary;
+  buildUp: number;
+  midfieldControl: number;
+  pressing: number;
+  widePlay: number;
+  centralPlay: number;
+  scorers: WeightedName[];
+  creators: WeightedName[];
+  centralScorers: WeightedName[];
+  wideScorers: WeightedName[];
+  transitionScorers: WeightedName[];
+  centralCreators: WeightedName[];
+  wideCreators: WeightedName[];
+  transitionCreators: WeightedName[];
+  builders: WeightedName[];
+  midfieldBallCarriers: WeightedName[];
+  wideBallCarriers: WeightedName[];
+};
+
+type ScoreState = {
+  user: number;
+  ai: number;
+};
+
+type SequenceState = {
+  attackingTeam: TeamContext;
+  defendingTeam: TeamContext;
+  minute: number;
+  attackMode: AttackMode;
+  score: ScoreState;
+  events: MatchEvent[];
+  xg: number;
+};
+
+const MATCH_SEGMENTS = [2, 4, 6, 8, 11, 14, 17, 20, 24, 28, 32, 36, 40, 45, 49, 53, 57, 61, 66, 71, 76, 81, 85, 88, 90];
 
 function average(values: number[]) {
   if (values.length === 0) {
-    return 0;
+    return 50;
   }
 
   return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function randomBetween(min: number, max: number) {
-  return min + Math.random() * (max - min);
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+function randomBetween(min: number, max: number) {
+  return min + Math.random() * (max - min);
+}
+
+function roundXg(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function isCountedShotEvent(event: MatchEvent) {
+  return event.type === 'shot' || event.type === 'save' || event.type === 'goal' || event.type === 'block';
+}
+
 function sample<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)] ?? items[0];
 }
 
-function getScorerWeight(player: Player) {
-  const role = getPlayerRole(player.position);
-  const baseWeight =
-    player.stats.shooting * 1 +
-    player.stats.dribbling * 0.2 +
-    player.stats.pace * 0.2 +
-    player.rating * 0.2;
-
-  if (role === 'FWD') {
-    return baseWeight * 1.25;
-  }
-
-  if (role === 'MID') {
-    return baseWeight * 0.8;
-  }
-
-  if (role === 'DEF') {
-    return baseWeight * 0.28;
-  }
-
-  return 0;
-}
-
-function getCreatorWeight(player: Player) {
-  const role = getPlayerRole(player.position);
-  const baseWeight =
-    player.stats.passing * 0.8 +
-    player.stats.dribbling * 0.45 +
-    player.stats.pace * 0.1 +
-    player.rating * 0.18;
-
-  if (role === 'MID') {
-    return baseWeight * 1.22;
-  }
-
-  if (role === 'FWD') {
-    return baseWeight * 0.92;
-  }
-
-  if (role === 'DEF') {
-    return baseWeight * 0.45;
-  }
-
-  return baseWeight * 0.2;
-}
-
-function getPlayersSortedByWeight(players: Player[], getWeight: (player: Player) => number) {
-  return [...players]
-    .map((player) => ({
-      name: player.name,
-      weight: getWeight(player),
-    }))
-    .filter((player) => player.weight > 0)
-    .sort((a, b) => b.weight - a.weight)
-    .map((player) => player.name);
-}
-
-function getWeightedStrength(players: Player[], getWeight: (player: Player) => number) {
-  return players.reduce((total, player) => total + getWeight(player), 0);
-}
-
-function getCentralScorerWeight(player: Player) {
-  const role = getPlayerRole(player.position);
-  const baseWeight =
-    player.stats.shooting * 1.02 +
-    player.stats.dribbling * 0.16 +
-    player.stats.passing * 0.08 +
-    player.rating * 0.18;
-
-  if (player.position === 'ST' || player.position === 'CF') {
-    return baseWeight * 1.28;
-  }
-
-  if (player.position === 'CAM') {
-    return baseWeight * 0.92;
-  }
-
-  if (role === 'MID') {
-    return baseWeight * 0.72;
-  }
-
-  if (role === 'DEF') {
-    return baseWeight * 0.24;
-  }
-
-  return baseWeight;
-}
-
-function getWideScorerWeight(player: Player) {
-  const role = getPlayerRole(player.position);
-  const baseWeight =
-    player.stats.shooting * 0.82 +
-    player.stats.dribbling * 0.32 +
-    player.stats.pace * 0.24 +
-    player.rating * 0.14;
-
-  if (player.position === 'LW' || player.position === 'RW') {
-    return baseWeight * 1.3;
-  }
-
-  if (player.position === 'ST' || player.position === 'CF') {
-    return baseWeight * 1.05;
-  }
-
-  if (role === 'DEF') {
-    return baseWeight * 0.42;
-  }
-
-  if (role === 'MID') {
-    return baseWeight * 0.88;
-  }
-
-  return baseWeight;
-}
-
-function getTransitionScorerWeight(player: Player) {
-  const role = getPlayerRole(player.position);
-  const baseWeight =
-    player.stats.pace * 0.42 +
-    player.stats.dribbling * 0.28 +
-    player.stats.shooting * 0.26 +
-    player.rating * 0.12;
-
-  if (player.position === 'LW' || player.position === 'RW') {
-    return baseWeight * 1.26;
-  }
-
-  if (player.position === 'ST' || player.position === 'CF') {
-    return baseWeight * 1.14;
-  }
-
-  if (role === 'MID') {
-    return baseWeight * 0.82;
-  }
-
-  if (role === 'DEF') {
-    return baseWeight * 0.18;
-  }
-
-  return baseWeight;
-}
-
-function getCentralCreatorWeight(player: Player) {
-  const role = getPlayerRole(player.position);
-  const baseWeight =
-    player.stats.passing * 0.86 +
-    player.stats.dribbling * 0.26 +
-    player.stats.shooting * 0.06 +
-    player.rating * 0.16;
-
-  if (player.position === 'CAM' || player.position === 'CM' || player.position === 'CF') {
-    return baseWeight * 1.24;
-  }
-
-  if (role === 'MID') {
-    return baseWeight * 1.08;
-  }
-
-  return baseWeight;
-}
-
-function getWideCreatorWeight(player: Player) {
-  const role = getPlayerRole(player.position);
-  const baseWeight =
-    player.stats.passing * 0.48 +
-    player.stats.dribbling * 0.34 +
-    player.stats.pace * 0.18 +
-    player.rating * 0.14;
-
-  if (player.position === 'LW' || player.position === 'RW' || player.position === 'RB') {
-    return baseWeight * 1.26;
-  }
-
-  if (role === 'MID') {
-    return baseWeight * 1.02;
-  }
-
-  return baseWeight;
-}
-
-function getTransitionCreatorWeight(player: Player) {
-  const role = getPlayerRole(player.position);
-  const baseWeight =
-    player.stats.pace * 0.36 +
-    player.stats.dribbling * 0.34 +
-    player.stats.passing * 0.22 +
-    player.rating * 0.12;
-
-  if (player.position === 'LW' || player.position === 'RW' || player.position === 'RB') {
-    return baseWeight * 1.28;
-  }
-
-  if (role === 'MID') {
-    return baseWeight * 1.04;
-  }
-
-  return baseWeight;
-}
-
-function getTopScorers(players: Player[]) {
-  const scorerPool = getPlayersSortedByWeight(players, getScorerWeight).map((name, index) => ({
-    name,
-    weight: scorerPoolWeight(index),
-  }));
-  const fallbackPool =
-    scorerPool.length > 0
-      ? scorerPool
-      : players.map((player) => ({
-          name: player.name,
-          weight: player.rating,
-        }));
-
-  return [...fallbackPool]
-    .sort((a, b) => b.weight - a.weight)
-    .map((player) => player.name);
-}
-
-function scorerPoolWeight(index: number) {
-  return Math.max(1, 100 - index * 8);
-}
-
-function getTopCreators(players: Player[]) {
-  return getPlayersSortedByWeight(players, getCreatorWeight);
-}
-
-function getTeamAttackBias(players: Player[]) {
-  const centralBias =
-    getWeightedStrength(players, getCentralScorerWeight) * 0.54 +
-    getWeightedStrength(players, getCentralCreatorWeight) * 0.46;
-  const wideBias =
-    getWeightedStrength(players, getWideScorerWeight) * 0.48 +
-    getWeightedStrength(players, getWideCreatorWeight) * 0.52;
-  const transitionBias =
-    getWeightedStrength(players, getTransitionScorerWeight) * 0.52 +
-    getWeightedStrength(players, getTransitionCreatorWeight) * 0.48;
-
-  return { centralBias, wideBias, transitionBias };
-}
-
-function getGoalkeeperStrength(players: Player[]) {
-  const goalkeeper = players.find((player) => getPlayerRole(player.position) === 'GK');
-
-  if (!goalkeeper) {
+function getGoalkeeperScore(player?: Player) {
+  if (!player) {
     return 50;
   }
 
-  return Math.round(
-    goalkeeper.stats.goalkeeping ??
-      goalkeeper.stats.defense * 0.65 +
-        (goalkeeper.stats.reflexes ?? 0) * 0.15 +
-        (goalkeeper.stats.handling ?? 0) * 0.1 +
-        goalkeeper.stats.passing * 0.15 +
-        goalkeeper.stats.physical * 0.1 +
-        goalkeeper.rating * 0.1,
+  return clamp(
+    Math.round(
+      (player.stats.goalkeeping ?? 50) * 0.48 +
+        (player.stats.reflexes ?? player.stats.goalkeeping ?? 50) * 0.22 +
+        (player.stats.handling ?? player.stats.goalkeeping ?? 50) * 0.16 +
+        (player.stats.aerial ?? player.stats.physical) * 0.08 +
+        (player.stats.distribution ?? player.stats.passing) * 0.06,
+    ),
+    40,
+    99,
   );
+}
+
+function getRoleWeightMultiplier(position: Player['position']) {
+  if (position === 'ST') {
+    return { build: 0.25, midfield: 0.55, wide: 0.65 };
+  }
+
+  if (position === 'CF') {
+    return { build: 0.4, midfield: 0.95, wide: 0.9 };
+  }
+
+  if (position === 'CAM') {
+    return { build: 0.6, midfield: 1.1, wide: 0.82 };
+  }
+
+  if (position === 'CM' || position === 'CDM') {
+    return { build: 1.05, midfield: 1.08, wide: 0.72 };
+  }
+
+  if (position === 'CB') {
+    return { build: 1.15, midfield: 0.45, wide: 0.22 };
+  }
+
+  if (position === 'RB' || position === 'LB') {
+    return { build: 1.02, midfield: 0.84, wide: 1.12 };
+  }
+
+  if (position === 'LW' || position === 'RW') {
+    return { build: 0.42, midfield: 0.86, wide: 1.2 };
+  }
+
+  return { build: 0.4, midfield: 0.5, wide: 0.4 };
+}
+
+function getWeightedPlayers(players: Player[], getWeight: (player: Player) => number) {
+  return players
+    .map((player) => ({
+      name: player.name,
+      weight: Math.max(0.1, getWeight(player)),
+    }))
+    .sort((left, right) => right.weight - left.weight);
+}
+
+function pickWeightedName(pool: WeightedName[], excluded?: string) {
+  const candidates = pool.filter((entry) => entry.name !== excluded);
+
+  if (candidates.length === 0) {
+    return pool[0]?.name;
+  }
+
+  const totalWeight = candidates.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = Math.random() * totalWeight;
+
+  for (const entry of candidates) {
+    roll -= entry.weight;
+    if (roll <= 0) {
+      return entry.name;
+    }
+  }
+
+  return candidates[0]?.name;
+}
+
+function buildLiveEvent(
+  minute: number,
+  team: MatchTeam,
+  type: MatchEvent['type'],
+  text: string,
+  score: ScoreState,
+  extras?: Partial<MatchEvent>,
+): MatchEvent {
+  return {
+    minute,
+    team,
+    type,
+    text,
+    userScore: score.user,
+    aiScore: score.ai,
+    ...extras,
+  };
+}
+
+function addEvent(events: MatchEvent[], event: MatchEvent | null) {
+  if (event) {
+    events.push(event);
+  }
 }
 
 function getPlayersByRole(players: Player[]) {
@@ -365,17 +248,19 @@ function getAttackerProfileBonus(players: Player[]) {
     (bonus, player) => {
       if (player.position === 'ST') {
         bonus.finishing += 6;
+        bonus.central += 5;
       } else if (player.position === 'CF') {
         bonus.finishing += 3;
         bonus.creation += 4;
+        bonus.central += 4;
       } else if (player.position === 'LW' || player.position === 'RW') {
-        bonus.transition += 5;
-        bonus.creation += 2;
+        bonus.transition += 6;
+        bonus.wide += 7;
       }
 
       return bonus;
     },
-    { finishing: 0, creation: 0, transition: 0 },
+    { finishing: 0, creation: 0, transition: 0, central: 0, wide: 0 },
   );
 }
 
@@ -384,16 +269,19 @@ function getMidfieldProfileBonus(players: Player[]) {
     (bonus, player) => {
       if (player.position === 'CAM') {
         bonus.creation += 6;
+        bonus.central += 5;
       } else if (player.position === 'CDM') {
         bonus.protection += 6;
+        bonus.build += 3;
       } else if (player.position === 'CM') {
         bonus.creation += 2;
         bonus.protection += 2;
+        bonus.build += 2;
       }
 
       return bonus;
     },
-    { creation: 0, protection: 0 },
+    { creation: 0, protection: 0, build: 0, central: 0 },
   );
 }
 
@@ -402,14 +290,17 @@ function getDefenseProfileBonus(players: Player[]) {
     (bonus, player) => {
       if (player.position === 'CB') {
         bonus.prevention += 5;
+        bonus.build += 1;
       } else if (player.position === 'RB' || player.position === 'LB') {
         bonus.transition += 4;
         bonus.prevention += 2;
+        bonus.wide += 4;
+        bonus.build += 2;
       }
 
       return bonus;
     },
-    { prevention: 0, transition: 0 },
+    { prevention: 0, transition: 0, wide: 0, build: 0 },
   );
 }
 
@@ -419,23 +310,14 @@ export function getTeamSummary(players: Player[]): MatchSideSummary {
   const attackerBonus = getAttackerProfileBonus(attackers);
   const midfieldBonus = getMidfieldProfileBonus(midfielders);
   const defenseBonus = getDefenseProfileBonus(defenders);
-  const goalkeeperSaveRate = Math.round(
-    goalkeeper
-      ? (goalkeeper.stats.goalkeeping ?? 50) * 0.42 +
-          (goalkeeper.stats.reflexes ?? goalkeeper.stats.goalkeeping ?? 50) * 0.24 +
-          (goalkeeper.stats.handling ?? goalkeeper.stats.goalkeeping ?? 50) * 0.16 +
-          (goalkeeper.stats.aerial ?? goalkeeper.stats.physical) * 0.08 +
-          goalkeeper.stats.defense * 0.1
-      : 50,
-  );
   const attack = Math.round(
     average(
       attackers.map(
         (player) =>
-          player.stats.shooting * 0.52 +
-          player.stats.dribbling * 0.16 +
-          player.stats.pace * 0.28 +
-          player.stats.passing * 0.04,
+          player.stats.shooting * 0.48 +
+          player.stats.dribbling * 0.22 +
+          player.stats.pace * 0.2 +
+          player.stats.passing * 0.1,
       ),
     ),
   );
@@ -443,11 +325,11 @@ export function getTeamSummary(players: Player[]): MatchSideSummary {
     average(
       midfielders.map(
         (player) =>
-          player.stats.passing * 0.42 +
-          player.stats.dribbling * 0.14 +
-          player.stats.defense * 0.18 +
-          player.stats.shooting * 0.14 +
-          player.stats.physical * 0.12,
+          player.stats.passing * 0.38 +
+          player.stats.dribbling * 0.18 +
+          player.stats.defense * 0.16 +
+          player.stats.shooting * 0.1 +
+          player.stats.physical * 0.18,
       ),
     ),
   );
@@ -455,360 +337,593 @@ export function getTeamSummary(players: Player[]): MatchSideSummary {
     average(
       defenders.map(
         (player) =>
-          player.stats.defense * 0.55 +
-          player.stats.dribbling * 0.05 +
-          player.stats.physical * 0.25 +
-          player.stats.passing * 0.15,
+          player.stats.defense * 0.5 +
+          player.stats.physical * 0.24 +
+          player.stats.passing * 0.16 +
+          player.stats.pace * 0.1,
       ),
     ),
   );
+
+  const goalkeeping = getGoalkeeperScore(goalkeeper);
 
   return {
     attack,
     midfield,
     defense,
     overall,
-    goalkeeping: getGoalkeeperStrength(players),
+    goalkeeping,
     chanceCreation: Math.round(
-      midfield * 0.58 +
-        attack * 0.2 +
+      midfield * 0.5 +
+        attack * 0.18 +
         attackerBonus.creation +
         midfieldBonus.creation +
-        defenseBonus.transition * 0.35,
+        defenseBonus.wide * 0.25,
     ),
-    finishing: Math.round(attack * 0.72 + attackerBonus.finishing + midfield * 0.08),
+    finishing: Math.round(attack * 0.74 + midfield * 0.06 + attackerBonus.finishing),
     transitionThreat: Math.round(
-      attack * 0.28 + midfield * 0.2 + attackerBonus.transition + defenseBonus.transition,
+      attack * 0.24 + midfield * 0.14 + attackerBonus.transition + defenseBonus.transition,
     ),
     shotPrevention: Math.round(
-      defense * 0.72 + midfield * 0.14 + midfieldBonus.protection + defenseBonus.prevention,
+      defense * 0.68 + midfield * 0.16 + midfieldBonus.protection + defenseBonus.prevention,
     ),
-    saveRate: clamp(goalkeeperSaveRate, 45, 99),
+    saveRate: clamp(goalkeeping, 40, 99),
   };
 }
 
-function buildPressureEvent(
-  minute: number,
-  team: 'user' | 'ai',
-  text: string,
-  userScore: number,
-  aiScore: number,
-): MatchEvent {
+function buildTeamContext(label: MatchTeam, players: Player[]): TeamContext {
+  const summary = getTeamSummary(players);
+  const { attackers, midfielders, defenders } = getPlayersByRole(players);
+  const attackerBonus = getAttackerProfileBonus(attackers);
+  const midfieldBonus = getMidfieldProfileBonus(midfielders);
+  const defenseBonus = getDefenseProfileBonus(defenders);
+
+  const scorerWeight = (player: Player) => {
+    const role = getPlayerRole(player.position);
+    const base =
+      player.stats.shooting * 1 +
+      player.stats.dribbling * 0.25 +
+      player.stats.pace * 0.18 +
+      player.rating * 0.18;
+
+    if (role === 'FWD') {
+      return base * 1.2;
+    }
+
+    if (role === 'MID') {
+      return base * 0.72;
+    }
+
+    if (role === 'DEF') {
+      return base * 0.22;
+    }
+
+    return 0;
+  };
+
+  const creatorWeight = (player: Player) => {
+    const role = getPlayerRole(player.position);
+    const base =
+      player.stats.passing * 0.82 +
+      player.stats.dribbling * 0.32 +
+      player.stats.pace * 0.08 +
+      player.rating * 0.18;
+
+    if (role === 'MID') {
+      return base * 1.18;
+    }
+
+    if (role === 'FWD') {
+      return base * 0.9;
+    }
+
+    if (role === 'DEF') {
+      return base * 0.48;
+    }
+
+    return base * 0.2;
+  };
+
+  const centralScorerWeight = (player: Player) => {
+    const base = scorerWeight(player);
+
+    if (player.position === 'ST' || player.position === 'CF') {
+      return base * 1.24;
+    }
+
+    if (player.position === 'CAM') {
+      return base * 0.94;
+    }
+
+    return base;
+  };
+
+  const wideScorerWeight = (player: Player) => {
+    const base = scorerWeight(player);
+
+    if (player.position === 'LW' || player.position === 'RW') {
+      return base * 1.28;
+    }
+
+    if (player.position === 'RB' || player.position === 'LB') {
+      return base * 0.55;
+    }
+
+    return base;
+  };
+
+  const transitionScorerWeight = (player: Player) => {
+    const base = scorerWeight(player);
+
+    if (player.position === 'LW' || player.position === 'RW') {
+      return base * 1.24;
+    }
+
+    if (player.position === 'ST' || player.position === 'CF') {
+      return base * 1.1;
+    }
+
+    return base;
+  };
+
+  const centralCreatorWeight = (player: Player) => {
+    const base = creatorWeight(player);
+
+    if (player.position === 'CAM' || player.position === 'CM' || player.position === 'CF') {
+      return base * 1.22;
+    }
+
+    return base;
+  };
+
+  const wideCreatorWeight = (player: Player) => {
+    const base = creatorWeight(player);
+
+    if (
+      player.position === 'LW' ||
+      player.position === 'RW' ||
+      player.position === 'RB' ||
+      player.position === 'LB'
+    ) {
+      return base * 1.24;
+    }
+
+    return base;
+  };
+
+  const transitionCreatorWeight = (player: Player) => {
+    const base = creatorWeight(player);
+
+    if (player.position === 'LW' || player.position === 'RW') {
+      return base * 1.24;
+    }
+
+    if (player.position === 'RB' || player.position === 'LB') {
+      return base * 1.16;
+    }
+
+    return base;
+  };
+
+  const builderWeight = (player: Player) => {
+    const multiplier = getRoleWeightMultiplier(player.position);
+
+    return (
+      (player.stats.passing * 0.54 +
+        player.stats.dribbling * 0.16 +
+        player.stats.defense * 0.12 +
+        player.stats.physical * 0.08 +
+        player.rating * 0.1) *
+      multiplier.build
+    );
+  };
+
+  const midfieldBallCarrierWeight = (player: Player) => {
+    const multiplier = getRoleWeightMultiplier(player.position);
+
+    return (
+      (player.stats.passing * 0.38 +
+        player.stats.dribbling * 0.26 +
+        player.stats.physical * 0.12 +
+        player.stats.pace * 0.12 +
+        player.rating * 0.12) *
+      multiplier.midfield
+    );
+  };
+
+  const wideBallCarrierWeight = (player: Player) => {
+    const multiplier = getRoleWeightMultiplier(player.position);
+
+    return (
+      (player.stats.dribbling * 0.36 +
+        player.stats.pace * 0.24 +
+        player.stats.passing * 0.2 +
+        player.stats.physical * 0.06 +
+        player.rating * 0.14) *
+      multiplier.wide
+    );
+  };
+
   return {
-    minute,
-    team,
-    type: 'pressure',
-    text,
-    userScore,
-    aiScore,
+    label,
+    summary,
+    buildUp: Math.round(
+      summary.defense * 0.46 +
+        summary.midfield * 0.34 +
+        defenseBonus.build +
+        midfieldBonus.build +
+        summary.goalkeeping * 0.08,
+    ),
+    midfieldControl: Math.round(summary.midfield * 0.72 + summary.attack * 0.08),
+    pressing: Math.round(summary.midfield * 0.44 + summary.shotPrevention * 0.4 + summary.attack * 0.08),
+    widePlay: Math.round(summary.transitionThreat * 0.6 + defenseBonus.wide + attackerBonus.wide),
+    centralPlay: Math.round(summary.chanceCreation * 0.62 + attackerBonus.central + midfieldBonus.central),
+    scorers: getWeightedPlayers(players, scorerWeight),
+    creators: getWeightedPlayers(players, creatorWeight),
+    centralScorers: getWeightedPlayers(players, centralScorerWeight),
+    wideScorers: getWeightedPlayers(players, wideScorerWeight),
+    transitionScorers: getWeightedPlayers(players, transitionScorerWeight),
+    centralCreators: getWeightedPlayers(players, centralCreatorWeight),
+    wideCreators: getWeightedPlayers(players, wideCreatorWeight),
+    transitionCreators: getWeightedPlayers(players, transitionCreatorWeight),
+    builders: getWeightedPlayers(players, builderWeight),
+    midfieldBallCarriers: getWeightedPlayers(players, midfieldBallCarrierWeight),
+    wideBallCarriers: getWeightedPlayers(players, wideBallCarrierWeight),
   };
 }
 
-function pickAssister(team: TeamContext, scorer?: string) {
-  const candidates = team.creators.filter((name) => name !== scorer);
-
-  if (candidates.length === 0) {
-    return undefined;
-  }
-
-  return sample(candidates.slice(0, 3));
-}
-
-function pickScorer(team: TeamContext, attackMode: 'wide' | 'central' | 'transition') {
-  const candidates =
-    attackMode === 'wide'
-      ? team.wideScorers
-      : attackMode === 'transition'
-        ? team.transitionScorers
-        : team.centralScorers;
-
-  return sample(candidates.slice(0, 4)) ?? sample(team.scorers.slice(0, 4)) ?? 'Un attaquant';
-}
-
-function pickModeAssister(
-  team: TeamContext,
-  attackMode: 'wide' | 'central' | 'transition',
-  scorer?: string,
-) {
-  const candidates =
-    attackMode === 'wide'
-      ? team.wideCreators
-      : attackMode === 'transition'
-        ? team.transitionCreators
-        : team.centralCreators;
-  const filtered = candidates.filter((name) => name !== scorer);
-
-  if (filtered.length === 0) {
-    return pickAssister(team, scorer);
-  }
-
-  return sample(filtered.slice(0, 3));
-}
-
-function buildLiveEvent(
-  minute: number,
-  team: 'user' | 'ai',
-  type: MatchEvent['type'],
-  text: string,
-  score: { user: number; ai: number },
-  extras?: Partial<MatchEvent>,
-): MatchEvent {
-  return {
-    minute,
-    team,
-    type,
-    text,
-    userScore: score.user,
-    aiScore: score.ai,
-    ...extras,
-  };
-}
-
-function maybeAddEvent(events: MatchEvent[], event: MatchEvent | null) {
-  if (event) {
-    events.push(event);
-  }
-}
-
-function roundXg(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
-function buildMatchStats(
-  userSummary: MatchSideSummary,
-  aiSummary: MatchSideSummary,
-  events: MatchEvent[],
-) {
-  const userPressure = events.filter(
-    (event) => event.team === 'user' && event.type === 'pressure',
-  ).length;
-  const aiPressure = events.filter(
-    (event) => event.team === 'ai' && event.type === 'pressure',
-  ).length;
-
-  const rawUserPossession =
-    50 +
-    (userSummary.midfield - aiSummary.midfield) * 0.7 +
-    (userSummary.chanceCreation - aiSummary.chanceCreation) * 0.08 +
-    (userPressure - aiPressure) * 1.8;
-  const userPossession = Math.round(clamp(rawUserPossession, 35, 65));
-  const aiPossession = 100 - userPossession;
-
-  const userShotEvents = events.filter(
-    (event) =>
-      event.team === 'user' &&
-      (event.type === 'shot' || event.type === 'save' || event.type === 'goal'),
+function getActionMode(attackingTeam: TeamContext, defendingTeam: TeamContext) {
+  const centralWeight = clamp(
+    2 + Math.round((attackingTeam.centralPlay - defendingTeam.summary.midfield * 0.35) / 12),
+    1,
+    6,
   );
-  const aiShotEvents = events.filter(
-    (event) =>
-      event.team === 'ai' &&
-      (event.type === 'shot' || event.type === 'save' || event.type === 'goal'),
+  const wideWeight = clamp(
+    2 + Math.round((attackingTeam.widePlay - defendingTeam.summary.defense * 0.2) / 12),
+    1,
+    6,
   );
-
-  return {
-    userStats: {
-      possession: userPossession,
-      shots: userShotEvents.length,
-      shotsOnTarget: userShotEvents.filter(
-        (event) => event.type === 'save' || event.type === 'goal',
-      ).length,
-      xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
-    },
-    aiStats: {
-      possession: aiPossession,
-      shots: aiShotEvents.length,
-      shotsOnTarget: aiShotEvents.filter(
-        (event) => event.type === 'save' || event.type === 'goal',
-      ).length,
-      xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
-    },
-  };
-}
-
-function simulateSegment(
-  minute: number,
-  attackingTeam: TeamContext,
-  defendingTeam: TeamContext,
-  score: { user: number; ai: number },
-  events: MatchEvent[],
-) {
-  const attackingBias = score[attackingTeam.label] < score[defendingTeam.label] ? 3 : 0;
-  const defendingBias = score[defendingTeam.label] > score[attackingTeam.label] ? 2 : 0;
-  const fatigueFactor = minute > 70 ? 0.96 : minute > 45 ? 0.98 : 1;
-  const centralThreat =
-    attackingTeam.summary.chanceCreation -
-    defendingTeam.summary.midfield * 0.35 +
-    attackingTeam.centralBias * 0.015;
-  const wideThreat =
-    attackingTeam.summary.transitionThreat -
-    defendingTeam.summary.defense * 0.22 +
-    attackingTeam.wideBias * 0.016;
-  const transitionThreat =
-    attackingTeam.summary.transitionThreat -
-    defendingTeam.summary.midfield * 0.18 +
-    attackingTeam.transitionBias * 0.018;
-  const attackModePool = [
-    ...Array.from({
-      length: Math.max(1, Math.round(clamp(centralThreat / 18, 1, 5))),
-    }).map(() => 'central' as const),
-    ...Array.from({
-      length: Math.max(1, Math.round(clamp(wideThreat / 18, 1, 5))),
-    }).map(() => 'wide' as const),
-    ...Array.from({
-      length: Math.max(1, Math.round(clamp(transitionThreat / 18, 1, 5))),
-    }).map(() => 'transition' as const),
+  const transitionWeight = clamp(
+    2 +
+      Math.round(
+        (attackingTeam.summary.transitionThreat - defendingTeam.summary.midfield * 0.14) / 12,
+      ),
+    1,
+    6,
+  );
+  const pool = [
+    ...Array.from({ length: centralWeight }).map(() => 'central' as const),
+    ...Array.from({ length: wideWeight }).map(() => 'wide' as const),
+    ...Array.from({ length: transitionWeight }).map(() => 'transition' as const),
   ];
-  const attackMode = sample(attackModePool) ?? 'central';
 
-  const possessionEdge =
-    attackingTeam.summary.midfield -
-    defendingTeam.summary.midfield +
-    attackingBias -
-    defendingBias;
-  const possessionRoll = possessionEdge + randomBetween(-6, 6);
+  return sample(pool) ?? 'central';
+}
 
-  if (possessionRoll > 3) {
-    maybeAddEvent(
-      events,
-      buildPressureEvent(
-        minute,
-        attackingTeam.label,
+function getMinuteFatigueModifier(minute: number) {
+  if (minute >= 80) {
+    return 0.93;
+  }
+
+  if (minute >= 65) {
+    return 0.96;
+  }
+
+  if (minute >= 50) {
+    return 0.98;
+  }
+
+  return 1;
+}
+
+function resolveBuildPhase(state: SequenceState) {
+  const builder = pickWeightedName(state.attackingTeam.builders);
+  const attackValue =
+    state.attackingTeam.buildUp * 0.72 +
+    state.attackingTeam.summary.chanceCreation * 0.14 +
+    randomBetween(-6, 8);
+  const defenseValue =
+    state.defendingTeam.pressing * 0.72 +
+    state.defendingTeam.summary.midfield * 0.16 +
+    randomBetween(-6, 7);
+  const successChance = clamp(0.64 + (attackValue - defenseValue) / 155, 0.42, 0.92);
+
+  if (Math.random() < clamp(successChance * 0.5, 0.16, 0.42)) {
+    addEvent(
+      state.events,
+      buildLiveEvent(
+        state.minute,
+        state.attackingTeam.label,
+        'pressure',
         buildPressureText(
-          minute,
-          attackingTeam.label,
-          score[attackingTeam.label],
-          score[defendingTeam.label],
+          state.minute,
+          state.attackingTeam.label,
+          state.score[state.attackingTeam.label],
+          state.score[state.defendingTeam.label],
         ),
-        score.user,
-        score.ai,
+        state.score,
+        { assister: builder },
       ),
     );
   }
 
-  if (attackMode === 'transition') {
-    maybeAddEvent(
-      events,
+  return Math.random() < successChance ? 'midfield' : null;
+}
+
+function resolveMidfieldPhase(state: SequenceState) {
+  const carrier =
+    state.attackMode === 'wide'
+      ? pickWeightedName(state.attackingTeam.wideBallCarriers)
+      : pickWeightedName(state.attackingTeam.midfieldBallCarriers);
+  const attackValue =
+    state.attackingTeam.midfieldControl * 0.62 +
+    state.attackingTeam.summary.chanceCreation * 0.18 +
+    (state.attackMode === 'transition' ? state.attackingTeam.summary.transitionThreat * 0.12 : 0) +
+    randomBetween(-8, 10);
+  const defenseValue =
+    state.defendingTeam.midfieldControl * 0.48 +
+    state.defendingTeam.pressing * 0.24 +
+    randomBetween(-8, 9);
+  const successChance = clamp(0.61 + (attackValue - defenseValue) / 150, 0.4, 0.9);
+
+  if (state.attackMode === 'transition' && Math.random() < 0.62) {
+    addEvent(
+      state.events,
       buildLiveEvent(
-        minute,
-        attackingTeam.label,
+        state.minute,
+        state.attackingTeam.label,
         'counter',
-        buildCounterText(attackingTeam.label, minute),
-        score,
-      ),
-    );
-  } else if (attackMode === 'wide' && Math.random() < 0.64) {
-    maybeAddEvent(
-      events,
-      buildLiveEvent(
-        minute,
-        attackingTeam.label,
-        'cross',
-        buildCrossText(attackingTeam.label),
-        score,
+        buildCounterText(state.attackingTeam.label, state.minute),
+        state.score,
+        { assister: carrier },
       ),
     );
   }
 
-  const chanceQuality =
-    (attackingTeam.summary.finishing * 0.34 +
-      attackingTeam.summary.chanceCreation * 0.38 +
-      attackingTeam.summary.transitionThreat * 0.16 +
-      (attackMode === 'transition' ? 4.5 : 0) +
-      (attackMode === 'wide' ? 2.5 : 0) +
-      randomBetween(10, 24) -
-      defendingTeam.summary.shotPrevention * 0.15 -
-      defendingTeam.summary.saveRate * 0.025) *
-    fatigueFactor;
+  return Math.random() < successChance ? 'finalThird' : null;
+}
 
-  const chanceProbability = clamp(
-    0.43 +
-      (attackingTeam.summary.chanceCreation - defendingTeam.summary.midfield) / 110 +
-      (attackingTeam.summary.transitionThreat - defendingTeam.summary.defense) / 155,
-    0.32,
-    0.84,
+function resolveFinalThirdPhase(state: SequenceState) {
+  const actionCreator =
+    state.attackMode === 'wide'
+      ? pickWeightedName(state.attackingTeam.wideCreators)
+      : state.attackMode === 'transition'
+        ? pickWeightedName(state.attackingTeam.transitionCreators)
+        : pickWeightedName(state.attackingTeam.centralCreators);
+  const widthBonus = state.attackMode === 'wide' ? state.attackingTeam.widePlay * 0.08 : 0;
+  const transitionBonus =
+    state.attackMode === 'transition' ? state.attackingTeam.summary.transitionThreat * 0.1 : 0;
+  const attackValue =
+    state.attackingTeam.summary.chanceCreation * 0.5 +
+    state.attackingTeam.summary.finishing * 0.14 +
+    widthBonus +
+    transitionBonus +
+    randomBetween(-8, 11);
+  const defenseValue =
+    state.defendingTeam.summary.shotPrevention * 0.58 +
+    state.defendingTeam.summary.midfield * 0.1 +
+    randomBetween(-8, 8);
+  const successChance = clamp(0.6 + (attackValue - defenseValue) / 150, 0.38, 0.9);
+
+  if (state.attackMode === 'wide' && Math.random() < 0.62) {
+    addEvent(
+      state.events,
+      buildLiveEvent(
+        state.minute,
+        state.attackingTeam.label,
+        'cross',
+        buildCrossText(state.attackingTeam.label),
+        state.score,
+        { assister: actionCreator },
+      ),
+    );
+  }
+
+  if (Math.random() > successChance) {
+    if (Math.random() < 0.22) {
+      addEvent(
+        state.events,
+        buildLiveEvent(
+          state.minute,
+          state.defendingTeam.label,
+          'block',
+          buildBlockText(state.attackingTeam.label),
+          state.score,
+          { xg: 0.03, assister: actionCreator },
+        ),
+      );
+    }
+
+    if (Math.random() < 0.48) {
+      const speculativeXg = roundXg(
+        state.attackMode === 'wide'
+          ? randomBetween(0.05, 0.12)
+          : state.attackMode === 'transition'
+            ? randomBetween(0.08, 0.16)
+            : randomBetween(0.06, 0.14),
+      );
+
+      addEvent(
+        state.events,
+        buildLiveEvent(
+          state.minute + 1,
+          state.attackingTeam.label,
+          'shot',
+          buildShotText(state.attackingTeam.label, speculativeXg),
+          state.score,
+          {
+            xg: speculativeXg,
+            scorer:
+              (state.attackMode === 'wide'
+                ? pickWeightedName(state.attackingTeam.wideScorers)
+                : state.attackMode === 'transition'
+                  ? pickWeightedName(state.attackingTeam.transitionScorers)
+                  : pickWeightedName(state.attackingTeam.centralScorers)) ??
+              pickWeightedName(state.attackingTeam.scorers),
+            assister: actionCreator,
+          },
+        ),
+      );
+    }
+
+    return null;
+  }
+
+  return 'box';
+}
+
+function resolveBoxPhase(state: SequenceState) {
+  const actionCreator =
+    state.attackMode === 'wide'
+      ? pickWeightedName(state.attackingTeam.wideCreators)
+      : state.attackMode === 'transition'
+        ? pickWeightedName(state.attackingTeam.transitionCreators)
+        : pickWeightedName(state.attackingTeam.centralCreators);
+  const fatigueModifier = getMinuteFatigueModifier(state.minute);
+  const chanceQuality = clamp(
+    (state.attackingTeam.summary.chanceCreation * 0.38 +
+      state.attackingTeam.summary.finishing * 0.36 +
+      (state.attackMode === 'transition' ? 6 : 0) +
+      (state.attackMode === 'wide' ? 4 : 0) -
+      state.defendingTeam.summary.shotPrevention * 0.18 -
+      state.defendingTeam.summary.saveRate * 0.06 +
+      randomBetween(22, 34)) *
+      fatigueModifier,
+    30,
+    99,
   );
 
-  if (Math.random() > chanceProbability) {
-    return;
-  }
+  const shotXg = roundXg(
+    state.attackMode === 'transition'
+      ? clamp((chanceQuality - 18) / 50, 0.14, 0.54)
+      : state.attackMode === 'wide'
+        ? clamp((chanceQuality - 20) / 54, 0.1, 0.4)
+        : clamp((chanceQuality - 19) / 52, 0.12, 0.48),
+  );
+  state.xg += shotXg;
 
-  maybeAddEvent(
-    events,
+  addEvent(
+    state.events,
     buildLiveEvent(
-      minute,
-      attackingTeam.label,
+      state.minute,
+      state.attackingTeam.label,
       'chance',
-      buildChanceText(attackingTeam.label, chanceQuality, minute),
-      score,
-      {
-        xg: roundXg(clamp((chanceQuality - 18) / 65, 0.04, 0.62)),
-      },
+      buildChanceText(state.attackingTeam.label, chanceQuality, state.minute),
+      state.score,
+      { xg: shotXg, assister: actionCreator },
     ),
   );
 
-  const shotOnTargetProbability = clamp((chanceQuality - 24) / 32, 0.48, 0.95);
-  const shotXg = roundXg(clamp((chanceQuality - 18) / 65, 0.04, 0.62));
-
-  if (Math.random() < clamp((defendingTeam.summary.shotPrevention - attackingTeam.summary.finishing) / 180 + 0.08, 0.05, 0.24)) {
-    maybeAddEvent(
-      events,
+  const blockChance = clamp(
+    0.06 + (state.defendingTeam.summary.shotPrevention - state.attackingTeam.summary.finishing) / 190,
+    0.04,
+    0.18,
+  );
+  if (Math.random() < blockChance) {
+    addEvent(
+      state.events,
       buildLiveEvent(
-        minute + 1,
-        defendingTeam.label,
+        state.minute + 1,
+        state.attackingTeam.label,
         'block',
-        buildBlockText(attackingTeam.label),
-        score,
-        { xg: roundXg(shotXg * 0.65) },
+        buildBlockText(state.attackingTeam.label),
+        state.score,
+        { xg: roundXg(shotXg * 0.72), assister: actionCreator },
       ),
     );
     return;
   }
 
-  if (Math.random() > shotOnTargetProbability) {
-    maybeAddEvent(
-      events,
-      buildLiveEvent(minute + 1, attackingTeam.label, 'shot', buildShotText(attackingTeam.label, shotXg), score, {
-        xg: shotXg,
-      }),
+  const onTargetChance = clamp(0.62 + (chanceQuality - 44) / 72, 0.46, 0.94);
+  if (Math.random() > onTargetChance) {
+    addEvent(
+      state.events,
+      buildLiveEvent(
+        state.minute + 1,
+        state.attackingTeam.label,
+        'shot',
+        buildShotText(state.attackingTeam.label, shotXg),
+        state.score,
+        {
+          xg: shotXg,
+          scorer:
+            (state.attackMode === 'wide'
+              ? pickWeightedName(state.attackingTeam.wideScorers)
+              : state.attackMode === 'transition'
+                ? pickWeightedName(state.attackingTeam.transitionScorers)
+                : pickWeightedName(state.attackingTeam.centralScorers)) ??
+            pickWeightedName(state.attackingTeam.scorers),
+          assister: actionCreator,
+        },
+      ),
     );
     return;
   }
 
-  const goalProbability = clamp(
-    0.31 +
-      (attackingTeam.summary.finishing - defendingTeam.summary.shotPrevention) / 130 +
-      (chanceQuality - defendingTeam.summary.saveRate) / 76,
+  const goalChance = clamp(
+    0.36 +
+      (state.attackingTeam.summary.finishing - state.defendingTeam.summary.shotPrevention) / 120 +
+      (chanceQuality - state.defendingTeam.summary.saveRate) / 90,
     0.2,
-    0.78,
+    0.8,
   );
-
-  if (Math.random() > goalProbability) {
-    maybeAddEvent(
-      events,
-      buildLiveEvent(minute + 1, defendingTeam.label, 'save', buildSaveText(attackingTeam.label, shotXg), score, {
-        xg: shotXg,
-      }),
+  if (Math.random() > goalChance) {
+    addEvent(
+      state.events,
+      buildLiveEvent(
+        state.minute + 1,
+        state.attackingTeam.label,
+        'save',
+        buildSaveText(state.attackingTeam.label, shotXg),
+        state.score,
+        {
+          xg: shotXg,
+          scorer:
+            (state.attackMode === 'wide'
+              ? pickWeightedName(state.attackingTeam.wideScorers)
+              : state.attackMode === 'transition'
+                ? pickWeightedName(state.attackingTeam.transitionScorers)
+                : pickWeightedName(state.attackingTeam.centralScorers)) ??
+            pickWeightedName(state.attackingTeam.scorers),
+          assister: actionCreator,
+        },
+      ),
     );
     return;
   }
 
-  const scorer = pickScorer(attackingTeam, attackMode);
-  const assister = pickModeAssister(attackingTeam, attackMode, scorer);
+  const scorers =
+    state.attackMode === 'wide'
+      ? state.attackingTeam.wideScorers
+      : state.attackMode === 'transition'
+        ? state.attackingTeam.transitionScorers
+        : state.attackingTeam.centralScorers;
+  const creators =
+    state.attackMode === 'wide'
+      ? state.attackingTeam.wideCreators
+      : state.attackMode === 'transition'
+        ? state.attackingTeam.transitionCreators
+        : state.attackingTeam.centralCreators;
+  const scorer = pickWeightedName(scorers) ?? pickWeightedName(state.attackingTeam.scorers) ?? 'Un attaquant';
+  const assister =
+    Math.random() < 0.78
+      ? pickWeightedName(creators, scorer) ?? actionCreator
+      : undefined;
 
-  if (attackingTeam.label === 'user') {
-    score.user += 1;
+  if (state.attackingTeam.label === 'user') {
+    state.score.user += 1;
   } else {
-    score.ai += 1;
+    state.score.ai += 1;
   }
 
-  maybeAddEvent(
-    events,
+  addEvent(
+    state.events,
     buildLiveEvent(
-      minute + 1,
-      attackingTeam.label,
+      state.minute + 1,
+      state.attackingTeam.label,
       'goal',
-      buildGoalText(attackingTeam.label, scorer, minute + 1, shotXg, assister),
-      score,
+      buildGoalText(state.attackingTeam.label, scorer, state.minute + 1, shotXg, assister),
+      state.score,
       {
         scorer,
         assister,
@@ -818,75 +933,128 @@ function simulateSegment(
   );
 }
 
+function runAttackSequence(
+  minute: number,
+  attackingTeam: TeamContext,
+  defendingTeam: TeamContext,
+  score: ScoreState,
+  events: MatchEvent[],
+) {
+  const attackMode = getActionMode(attackingTeam, defendingTeam);
+  const state: SequenceState = {
+    attackingTeam,
+    defendingTeam,
+    minute,
+    attackMode,
+    score,
+    events,
+    xg: 0,
+  };
+
+  const buildResult = resolveBuildPhase(state);
+  if (!buildResult) {
+    return;
+  }
+
+  const midfieldResult = resolveMidfieldPhase(state);
+  if (!midfieldResult) {
+    return;
+  }
+
+  const finalThirdResult = resolveFinalThirdPhase(state);
+  if (!finalThirdResult) {
+    return;
+  }
+
+  resolveBoxPhase(state);
+}
+
+function buildMatchStats(
+  userSummary: MatchSideSummary,
+  aiSummary: MatchSideSummary,
+  events: MatchEvent[],
+) {
+  const userPressure = events.filter((event) => event.team === 'user' && event.type === 'pressure').length;
+  const aiPressure = events.filter((event) => event.team === 'ai' && event.type === 'pressure').length;
+  const userPossession = Math.round(
+    clamp(
+      50 +
+        (userSummary.midfield - aiSummary.midfield) * 0.6 +
+        (userSummary.chanceCreation - aiSummary.chanceCreation) * 0.08 +
+        (userPressure - aiPressure) * 1.2,
+      35,
+      65,
+    ),
+  );
+  const aiPossession = 100 - userPossession;
+  const userShotEvents = events.filter(
+    (event) => event.team === 'user' && isCountedShotEvent(event),
+  );
+  const aiShotEvents = events.filter(
+    (event) => event.team === 'ai' && isCountedShotEvent(event),
+  );
+
+  return {
+    userStats: {
+      possession: userPossession,
+      shots: userShotEvents.length,
+      shotsOnTarget: userShotEvents.filter((event) => event.type === 'save' || event.type === 'goal').length,
+      xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+    },
+    aiStats: {
+      possession: aiPossession,
+      shots: aiShotEvents.length,
+      shotsOnTarget: aiShotEvents.filter((event) => event.type === 'save' || event.type === 'goal').length,
+      xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
+    },
+  };
+}
+
 export function simulateMatch(userTeam: Player[], aiTeam: Player[]): MatchResult {
-  const userSummary = getTeamSummary(userTeam);
-  const aiSummary = getTeamSummary(aiTeam);
-  const userContext: TeamContext = {
-    label: 'user',
-    summary: userSummary,
-    scorers: getTopScorers(userTeam),
-    creators: getTopCreators(userTeam),
-    centralScorers: getPlayersSortedByWeight(userTeam, getCentralScorerWeight),
-    transitionScorers: getPlayersSortedByWeight(userTeam, getTransitionScorerWeight),
-    wideScorers: getPlayersSortedByWeight(userTeam, getWideScorerWeight),
-    centralCreators: getPlayersSortedByWeight(userTeam, getCentralCreatorWeight),
-    wideCreators: getPlayersSortedByWeight(userTeam, getWideCreatorWeight),
-    transitionCreators: getPlayersSortedByWeight(userTeam, getTransitionCreatorWeight),
-    ...getTeamAttackBias(userTeam),
-  };
-  const aiContext: TeamContext = {
-    label: 'ai',
-    summary: aiSummary,
-    scorers: getTopScorers(aiTeam),
-    creators: getTopCreators(aiTeam),
-    centralScorers: getPlayersSortedByWeight(aiTeam, getCentralScorerWeight),
-    transitionScorers: getPlayersSortedByWeight(aiTeam, getTransitionScorerWeight),
-    wideScorers: getPlayersSortedByWeight(aiTeam, getWideScorerWeight),
-    centralCreators: getPlayersSortedByWeight(aiTeam, getCentralCreatorWeight),
-    wideCreators: getPlayersSortedByWeight(aiTeam, getWideCreatorWeight),
-    transitionCreators: getPlayersSortedByWeight(aiTeam, getTransitionCreatorWeight),
-    ...getTeamAttackBias(aiTeam),
-  };
+  const userContext = buildTeamContext('user', userTeam);
+  const aiContext = buildTeamContext('ai', aiTeam);
+  const score: ScoreState = { user: 0, ai: 0 };
   const events: MatchEvent[] = [];
-  const score = { user: 0, ai: 0 };
 
   MATCH_SEGMENTS.forEach((minute) => {
-    const userMomentum =
-      userSummary.midfield * 0.48 +
-      userSummary.attack * 0.28 +
+    const userInitiative =
+      userContext.midfieldControl * 0.46 +
+      userContext.summary.transitionThreat * 0.14 +
       (score.user < score.ai ? 4 : 0) +
-      randomBetween(-6, 9);
-    const aiMomentum =
-      aiSummary.midfield * 0.48 +
-      aiSummary.attack * 0.28 +
+      randomBetween(-7, 8);
+    const aiInitiative =
+      aiContext.midfieldControl * 0.46 +
+      aiContext.summary.transitionThreat * 0.14 +
       (score.ai < score.user ? 4 : 0) +
-      randomBetween(-6, 9);
+      randomBetween(-7, 8);
 
-    if (userMomentum >= aiMomentum) {
-      simulateSegment(minute, userContext, aiContext, score, events);
+    if (userInitiative >= aiInitiative) {
+      runAttackSequence(minute, userContext, aiContext, score, events);
     } else {
-      simulateSegment(minute, aiContext, userContext, score, events);
+      runAttackSequence(minute, aiContext, userContext, score, events);
     }
 
-    if (Math.abs(userMomentum - aiMomentum) > 4) {
-      const dominant = userMomentum > aiMomentum ? userContext : aiContext;
-      const defending = dominant.label === 'user' ? aiContext : userContext;
-      simulateSegment(minute + 2, dominant, defending, score, events);
+    if (Math.abs(userInitiative - aiInitiative) > 3) {
+      if (userInitiative > aiInitiative) {
+        runAttackSequence(Math.min(90, minute + 1), userContext, aiContext, score, events);
+      } else {
+        runAttackSequence(Math.min(90, minute + 1), aiContext, userContext, score, events);
+      }
     }
   });
 
-  const orderedEvents = [...events].sort((a, b) => a.minute - b.minute);
-  const { userStats, aiStats } = buildMatchStats(userSummary, aiSummary, orderedEvents);
+  const orderedEvents = [...events].sort((left, right) => left.minute - right.minute);
+  const { userStats, aiStats } = buildMatchStats(userContext.summary, aiContext.summary, orderedEvents);
 
   return {
     userScore: score.user,
     aiScore: score.ai,
     winner: score.user === score.ai ? 'draw' : score.user > score.ai ? 'user' : 'ai',
-    userSummary,
-    aiSummary,
+    userSummary: userContext.summary,
+    aiSummary: aiContext.summary,
     userStats,
     aiStats,
-    highlights: buildHighlights(userSummary, aiSummary, score.user, score.ai, orderedEvents),
+    highlights: buildHighlights(userContext.summary, aiContext.summary, score.user, score.ai, orderedEvents),
     events: orderedEvents,
   };
 }

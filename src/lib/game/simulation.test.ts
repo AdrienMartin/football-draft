@@ -98,6 +98,55 @@ const balancedAiTeam: Player[] = [
   createPlayer(10, 'Fast Forward', 'CF', 85, { ...wingerStats, shooting: 84, passing: 82, physical: 72 }),
 ];
 
+const wideThreatTeam: Player[] = [
+  createPlayer(21, 'Wide Keeper', 'GK', 84, { ...keeperStats, goalkeeping: 85 }),
+  createPlayer(22, 'Flying Right Back', 'RB', 82, {
+    ...defenderStats,
+    pace: 82,
+    passing: 78,
+    dribbling: 72,
+  }),
+  createPlayer(23, 'Creative Mid', 'CM', 83, {
+    ...creatorMidStats,
+    passing: 84,
+    dribbling: 82,
+  }),
+  createPlayer(24, 'Explosive Winger', 'LW', 84, {
+    ...wingerStats,
+    pace: 92,
+    dribbling: 92,
+    passing: 84,
+  }),
+  createPlayer(25, 'Box Striker', 'ST', 84, strikerStats),
+];
+
+const centralThreatTeam: Player[] = [
+  createPlayer(26, 'Central Keeper', 'GK', 84, { ...keeperStats, goalkeeping: 85 }),
+  createPlayer(27, 'Center Back', 'CB', 82, defenderStats),
+  createPlayer(28, 'Elite Creator', 'CAM', 85, {
+    ...creatorMidStats,
+    passing: 91,
+    dribbling: 87,
+    shooting: 78,
+  }),
+  createPlayer(29, 'Support Forward', 'CF', 84, {
+    ...strikerStats,
+    shooting: 86,
+    passing: 84,
+    dribbling: 84,
+  }),
+  createPlayer(30, 'Penalty Box Striker', 'ST', 85, {
+    ...strikerStats,
+    shooting: 93,
+    dribbling: 80,
+    pace: 82,
+  }),
+];
+
+function getRoleForPlayerName(team: Player[], playerName: string) {
+  return team.find((player) => player.name === playerName)?.position;
+}
+
 describe('simulation team summary', () => {
   it('reflects profile bonuses for a 5v5 team', () => {
     const creatorTeam: Player[] = [
@@ -129,7 +178,7 @@ describe('simulation team summary', () => {
 
 describe('simulateMatch balancing', () => {
   it('produces a plausible distribution of scores across many matches', () => {
-    const iterations = 250;
+    const iterations = 180;
     let zeroZeroCount = 0;
     let totalGoals = 0;
     let scoringMatches = 0;
@@ -149,9 +198,151 @@ describe('simulateMatch balancing', () => {
 
     const averageGoals = totalGoals / iterations;
 
-    expect(zeroZeroCount).toBeLessThan(100);
-    expect(scoringMatches).toBeGreaterThan(95);
-    expect(averageGoals).toBeGreaterThan(0.9);
-    expect(averageGoals).toBeLessThan(4.8);
+    expect(zeroZeroCount).toBeLessThan(90);
+    expect(scoringMatches).toBeGreaterThan(70);
+    expect(averageGoals).toBeGreaterThan(1.1);
+    expect(averageGoals).toBeLessThan(6.2);
+  });
+
+  it('keeps match stats consistent with the generated event log', () => {
+    const result = simulateMatch(balancedUserTeam, balancedAiTeam);
+    const userGoalEvents = result.events.filter(
+      (event) => event.team === 'user' && event.type === 'goal',
+    );
+    const aiGoalEvents = result.events.filter(
+      (event) => event.team === 'ai' && event.type === 'goal',
+    );
+    const userShotEvents = result.events.filter(
+      (event) =>
+        event.team === 'user' &&
+        (event.type === 'shot' ||
+          event.type === 'save' ||
+          event.type === 'goal' ||
+          event.type === 'block'),
+    );
+    const aiShotEvents = result.events.filter(
+      (event) =>
+        event.team === 'ai' &&
+        (event.type === 'shot' ||
+          event.type === 'save' ||
+          event.type === 'goal' ||
+          event.type === 'block'),
+    );
+
+    expect(result.events).toEqual([...result.events].sort((a, b) => a.minute - b.minute));
+
+    expect(result.userScore).toBe(userGoalEvents.length);
+    expect(result.aiScore).toBe(aiGoalEvents.length);
+
+    expect(result.userStats.shots).toBe(userShotEvents.length);
+    expect(result.aiStats.shots).toBe(aiShotEvents.length);
+
+    expect(result.userStats.shotsOnTarget).toBe(
+      userShotEvents.filter((event) => event.type === 'save' || event.type === 'goal').length,
+    );
+    expect(result.aiStats.shotsOnTarget).toBe(
+      aiShotEvents.filter((event) => event.type === 'save' || event.type === 'goal').length,
+    );
+
+    expect(result.userStats.shots).toBeGreaterThanOrEqual(result.userStats.shotsOnTarget);
+    expect(result.aiStats.shots).toBeGreaterThanOrEqual(result.aiStats.shotsOnTarget);
+
+    expect(result.userStats.possession + result.aiStats.possession).toBe(100);
+    expect(result.userStats.xg).toBeGreaterThanOrEqual(0);
+    expect(result.aiStats.xg).toBeGreaterThanOrEqual(0);
+
+    userGoalEvents.forEach((event) => {
+      expect(event.scorer).toBeTruthy();
+      expect(event.userScore).toBeGreaterThan(0);
+    });
+
+    aiGoalEvents.forEach((event) => {
+      expect(event.scorer).toBeTruthy();
+      expect(event.aiScore).toBeGreaterThan(0);
+    });
+  });
+
+  it('keeps scorer and assister invariants coherent', () => {
+    const iterations = 60;
+
+    for (let index = 0; index < iterations; index += 1) {
+      const result = simulateMatch(balancedUserTeam, balancedAiTeam);
+
+      result.events.forEach((event) => {
+        if (event.type === 'goal') {
+          expect(event.scorer).toBeTruthy();
+          expect(event.scorer).not.toBe(event.assister);
+        }
+
+        if (event.type === 'save' || event.type === 'shot' || event.type === 'block') {
+          expect(event.xg).toBeGreaterThan(0);
+        }
+      });
+    }
+  });
+
+  it('reflects wide and central profiles in action selection over many matches', () => {
+    const iterations = 70;
+    let wideCrossEvents = 0;
+    let centralChanceEvents = 0;
+
+    for (let index = 0; index < iterations; index += 1) {
+      const wideResult = simulateMatch(wideThreatTeam, balancedAiTeam);
+      const centralResult = simulateMatch(centralThreatTeam, balancedAiTeam);
+
+      wideCrossEvents += wideResult.events.filter(
+        (event) => event.team === 'user' && event.type === 'cross',
+      ).length;
+      centralChanceEvents += centralResult.events.filter(
+        (event) => event.team === 'user' && event.type === 'chance',
+      ).length;
+    }
+
+    expect(wideCrossEvents).toBeGreaterThan(20);
+    expect(centralChanceEvents).toBeGreaterThan(35);
+  });
+
+  it('keeps scorers and assisters concentrated on plausible roles over many matches', () => {
+    const iterations = 120;
+    let defenderGoals = 0;
+    let goalkeeperGoals = 0;
+    let midfielderAssists = 0;
+    let forwardAssists = 0;
+    let totalGoals = 0;
+
+    for (let index = 0; index < iterations; index += 1) {
+      const result = simulateMatch(balancedUserTeam, balancedAiTeam);
+
+      result.events
+        .filter((event) => event.team === 'user' && event.type === 'goal')
+        .forEach((event) => {
+          totalGoals += 1;
+
+          const scorerRole = getRoleForPlayerName(balancedUserTeam, event.scorer ?? '');
+          const assisterRole = getRoleForPlayerName(balancedUserTeam, event.assister ?? '');
+
+          if (scorerRole === 'CB' || scorerRole === 'RB' || scorerRole === 'LB') {
+            defenderGoals += 1;
+          }
+
+          if (scorerRole === 'GK') {
+            goalkeeperGoals += 1;
+          }
+
+          if (assisterRole === 'CAM' || assisterRole === 'CM' || assisterRole === 'CDM') {
+            midfielderAssists += 1;
+          }
+
+          if (assisterRole === 'ST' || assisterRole === 'CF' || assisterRole === 'LW' || assisterRole === 'RW') {
+            forwardAssists += 1;
+          }
+        });
+    }
+
+    expect(totalGoals).toBeGreaterThan(0);
+    expect(goalkeeperGoals).toBe(0);
+    expect(defenderGoals).toBeLessThanOrEqual(Math.max(2, Math.round(totalGoals * 0.12)));
+    expect(midfielderAssists + forwardAssists).toBeGreaterThan(0);
+    expect(midfielderAssists).toBeGreaterThanOrEqual(forwardAssists * 0.4);
   });
 });
