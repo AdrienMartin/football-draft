@@ -372,6 +372,7 @@ export function MatchResultCard({
 
   const hasStarted = startedAt ? Date.now() >= new Date(startedAt).getTime() : true;
   const isFinished = minute >= MATCH_DURATION;
+  const showHalfTimeSummary = hasStarted && minute >= HALF_TIME_MINUTE && !isFinished;
   const halfTimeEvents = useMemo(
     () => result.events.filter((event) => event.minute <= HALF_TIME_MINUTE),
     [result.events],
@@ -529,54 +530,64 @@ export function MatchResultCard({
               </p>
             )}
 
-            {isHalfTime ? <MatchSummaryCard title="Mi-temps" lines={halfTimeSummary} /> : null}
-
             {isFinished ? <MatchSummaryCard title="Fin du match" lines={fullTimeSummary} /> : null}
 
-            {orderedVisibleEvents.map((event) => {
+            {orderedVisibleEvents.map((event, index) => {
+              const previousEvent = orderedVisibleEvents[index - 1];
+              const shouldInsertHalfTimeSummary =
+                showHalfTimeSummary &&
+                event.minute <= HALF_TIME_MINUTE &&
+                (!previousEvent || previousEvent.minute > HALF_TIME_MINUTE);
               const styles = getEventStyle(event);
               const isGoal = event.type === 'goal';
 
               return (
-                <article
+                <div
                   key={`${event.team}-${event.minute}-${event.type}-${event.text}`}
-                  className={`rounded-2xl border px-4 py-3 ${styles.container}`}
+                  className="space-y-3"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <p
-                      className={`${isGoal ? 'text-base font-bold uppercase tracking-[0.18em]' : 'text-sm font-semibold'} ${styles.title}`}
-                    >
-                      {isGoal
-                        ? `⚽ But${event.team === 'user' ? ' pour ton équipe' : ` pour ${opponentTextParts.goalTarget}`}`
-                        : adaptOpponentText(event.text, opponentLabel)}
-                    </p>
-                    <span className={`${isGoal ? 'text-sm font-bold' : 'text-xs'} ${styles.minute}`}>
-                      {event.minute}'
-                    </span>
-                  </div>
+                  {shouldInsertHalfTimeSummary ? (
+                    <MatchSummaryCard title="Mi-temps" lines={halfTimeSummary} />
+                  ) : null}
 
-                  {isGoal && (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-sm font-medium text-white">
-                        {adaptOpponentText(event.text, opponentLabel)}
+                  <article className={`rounded-2xl border px-4 py-3 ${styles.container}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <p
+                        className={`${isGoal ? 'text-base font-bold uppercase tracking-[0.18em]' : 'text-sm font-semibold'} ${styles.title}`}
+                      >
+                        {isGoal
+                          ? `⚽ But${event.team === 'user' ? ' pour ton équipe' : ` pour ${opponentTextParts.goalTarget}`}`
+                          : adaptOpponentText(event.text, opponentLabel)}
                       </p>
-                      {event.assister ? (
-                        <p className="text-xs text-slate-300">Passe décisive : {event.assister}</p>
-                      ) : null}
+                      <span className={`${isGoal ? 'text-sm font-bold' : 'text-xs'} ${styles.minute}`}>
+                        {event.minute}'
+                      </span>
                     </div>
-                  )}
 
-                  <div className="mt-2 flex items-center justify-between gap-3">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${styles.badge}`}
-                    >
-                      {getEventBadgeLabel(event)}
-                    </span>
-                    <p className={`${isGoal ? 'text-sm font-bold' : 'text-xs'} ${styles.score}`}>
-                      Score : {event.userScore} - {event.aiScore}
-                    </p>
-                  </div>
-                </article>
+                    {isGoal && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm font-medium text-white">
+                          {adaptOpponentText(event.text, opponentLabel)}
+                        </p>
+                        {event.assister ? (
+                          <p className="text-xs text-slate-300">Passe décisive : {event.assister}</p>
+                        ) : null}
+                      </div>
+                    )}
+
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${styles.badge}`}
+                      >
+                        {getEventBadgeLabel(event)}
+                      </span>
+                      <p className={`${isGoal ? 'text-sm font-bold' : 'text-xs'} ${styles.score}`}>
+                        Score : {event.userScore} - {event.aiScore}
+                      </p>
+                    </div>
+                  </article>
+
+                </div>
               );
             })}
           </div>

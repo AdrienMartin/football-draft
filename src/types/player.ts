@@ -18,11 +18,18 @@ export type PlayerStats = {
   dribbling: number;
   defense: number;
   physical: number;
+  vision: number;
+  composure: number;
+  tackling: number;
+  positioning: number;
+  crossing: number;
   goalkeeping?: number;
   reflexes?: number;
   handling?: number;
   distribution?: number;
   aerial?: number;
+  shotStopping?: number;
+  commandOfArea?: number;
 };
 
 export type Player = {

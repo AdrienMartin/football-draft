@@ -31,11 +31,18 @@ const keeperStats: PlayerStats = {
   dribbling: 20,
   defense: 82,
   physical: 74,
+  vision: 50,
+  composure: 66,
+  tackling: 18,
+  positioning: 72,
+  crossing: 10,
   goalkeeping: 85,
   reflexes: 84,
   handling: 82,
   distribution: 68,
   aerial: 78,
+  shotStopping: 86,
+  commandOfArea: 80,
 };
 
 const strikerStats: PlayerStats = {
@@ -45,6 +52,11 @@ const strikerStats: PlayerStats = {
   dribbling: 82,
   defense: 24,
   physical: 78,
+  vision: 72,
+  composure: 86,
+  tackling: 20,
+  positioning: 88,
+  crossing: 38,
 };
 
 describe('getAiPick', () => {

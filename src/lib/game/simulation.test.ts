@@ -30,11 +30,18 @@ const keeperStats: PlayerStats = {
   dribbling: 24,
   defense: 84,
   physical: 76,
+  vision: 52,
+  composure: 68,
+  tackling: 18,
+  positioning: 74,
+  crossing: 10,
   goalkeeping: 86,
   reflexes: 87,
   handling: 84,
   distribution: 72,
   aerial: 80,
+  shotStopping: 88,
+  commandOfArea: 82,
 };
 
 const defenderStats: PlayerStats = {
@@ -44,6 +51,11 @@ const defenderStats: PlayerStats = {
   dribbling: 58,
   defense: 84,
   physical: 82,
+  vision: 64,
+  composure: 72,
+  tackling: 86,
+  positioning: 84,
+  crossing: 42,
 };
 
 const creatorMidStats: PlayerStats = {
@@ -53,6 +65,11 @@ const creatorMidStats: PlayerStats = {
   dribbling: 85,
   defense: 58,
   physical: 72,
+  vision: 90,
+  composure: 84,
+  tackling: 58,
+  positioning: 76,
+  crossing: 72,
 };
 
 const holdingMidStats: PlayerStats = {
@@ -62,6 +79,11 @@ const holdingMidStats: PlayerStats = {
   dribbling: 72,
   defense: 82,
   physical: 80,
+  vision: 78,
+  composure: 80,
+  tackling: 84,
+  positioning: 82,
+  crossing: 56,
 };
 
 const strikerStats: PlayerStats = {
@@ -71,6 +93,11 @@ const strikerStats: PlayerStats = {
   dribbling: 82,
   defense: 28,
   physical: 80,
+  vision: 72,
+  composure: 88,
+  tackling: 24,
+  positioning: 90,
+  crossing: 40,
 };
 
 const wingerStats: PlayerStats = {
@@ -80,6 +107,11 @@ const wingerStats: PlayerStats = {
   dribbling: 88,
   defense: 36,
   physical: 68,
+  vision: 82,
+  composure: 82,
+  tackling: 34,
+  positioning: 78,
+  crossing: 86,
 };
 
 const balancedUserTeam: Player[] = [
