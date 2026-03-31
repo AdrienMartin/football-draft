@@ -8,8 +8,22 @@ const sofascorePath =
   process.argv[3] ?? path.join(cwd, 'public', 'data', 'players_sofascore.csv');
 const transfermarktPath =
   process.argv[4] ?? path.join(cwd, 'public', 'data', 'players_transfermarkt.csv');
+const understatPath =
+  process.env.UNDERSTAT_DATA_PATH ??
+  path.join(cwd, 'public', 'data', 'tmp', 'players_understat_soccerdata.csv');
 const outputPath =
   process.argv[5] ?? path.join(cwd, 'public', 'data', 'players.json');
+
+function getTransfermarktValue(row, ...keys) {
+  for (const key of keys) {
+    const value = row?.[key];
+    if (value !== undefined && value !== '') {
+      return value;
+    }
+  }
+
+  return '';
+}
 
 function parseCsv(text) {
   const rows = [];
@@ -81,6 +95,14 @@ function clamp(value, min = 1, max = 99) {
   return Math.round(Math.max(min, Math.min(max, value)));
 }
 
+function softCap(value, pivot, strength) {
+  if (value <= pivot) {
+    return value;
+  }
+
+  return pivot + (value - pivot) * strength;
+}
+
 function normalizeText(value) {
   return String(value ?? '')
     .normalize('NFD')
@@ -144,6 +166,17 @@ function computeStatConfidence(row) {
     0.18,
     Math.min(1, minuteShare * 0.48 + startShare * 0.24 + matchShare * 0.14 + fullMatchShare * 0.14),
   );
+}
+
+function computeUnderstatConfidence(understat) {
+  if (!understat) {
+    return 0;
+  }
+
+  const minuteShare = Math.min((understat.minutes ?? 0) / 2400, 1);
+  const matchShare = Math.min((understat.matches ?? 0) / 30, 1);
+
+  return Math.max(0, Math.min(1, minuteShare * 0.7 + matchShare * 0.3));
 }
 
 function getFbrefLeagueName(competition) {
@@ -254,23 +287,38 @@ function buildTransfermarktIndex(rows) {
   const index = new Map();
 
   rows
-    .filter((row) => toNumber(row.market_value_in_eur) > 0 && toNumber(row.last_season) >= 2024)
+    .filter(
+      (row) =>
+        toNumber(getTransfermarktValue(row, 'market_value_in_eur', 'marketValueInEur')) > 0 &&
+        toNumber(getTransfermarktValue(row, 'last_season', 'lastSeason')) >= 2024,
+    )
     .forEach((row) => {
       const entry = {
-        playerId: row.player_id,
-        name: row.name,
-        club: row.current_club_name,
-        nationality: row.country_of_citizenship,
-        marketValueEur: Math.max(0, Math.round(toNumber(row.market_value_in_eur))),
-        highestMarketValueEur: Math.max(0, Math.round(toNumber(row.highest_market_value_in_eur))),
-        subPosition: row.sub_position,
-        position: row.position,
-        dateOfBirth: row.date_of_birth,
-        url: row.url || null,
-        clubKey: normalizeText(row.current_club_name),
+        name: getTransfermarktValue(row, 'name', 'player_name', 'playerName'),
+        club: getTransfermarktValue(row, 'current_club_name', 'club_name', 'clubName'),
+        nationality: getTransfermarktValue(
+          row,
+          'country_of_citizenship',
+          'nationality',
+          'country',
+        ),
+        marketValueEur: Math.max(
+          0,
+          Math.round(toNumber(getTransfermarktValue(row, 'market_value_in_eur', 'marketValueInEur'))),
+        ),
+        highestMarketValueEur: Math.max(
+          0,
+          Math.round(
+            toNumber(getTransfermarktValue(row, 'highest_market_value_in_eur', 'highestMarketValueInEur')),
+          ),
+        ),
+        subPosition: getTransfermarktValue(row, 'sub_position', 'subPosition'),
+        url: getTransfermarktValue(row, 'url', 'profile_url', 'profileUrl') || null,
+        heightInCm: toNumber(getTransfermarktValue(row, 'height_in_cm', 'heightInCm')),
+        clubKey: normalizeText(getTransfermarktValue(row, 'current_club_name', 'club_name', 'clubName')),
       };
-      const nameKey = normalizeText(row.name);
-      const clubKey = normalizeText(row.current_club_name);
+      const nameKey = normalizeText(entry.name);
+      const clubKey = normalizeText(entry.club);
       const compositeKey = `${nameKey}::${clubKey}`;
       const entries = index.get(nameKey) ?? [];
 
@@ -299,7 +347,9 @@ function findTransfermarktEntry(row, transfermarktIndex) {
   }
 
   if (candidates.length > 1) {
-    const bestClubMatch = candidates.find((candidate) => similarity(clubKey, candidate.clubKey) >= 0.4);
+    const bestClubMatch = candidates.find(
+      (candidate) => similarity(clubKey, candidate.clubKey) >= 0.4,
+    );
     if (bestClubMatch) {
       return bestClubMatch;
     }
@@ -320,6 +370,69 @@ function buildSofascoreIndex(rows) {
   });
 
   return byLeague;
+}
+
+function buildUnderstatIndex(rows) {
+  const index = new Map();
+
+  rows.forEach((row) => {
+    const entry = {
+      name: row.player,
+      club: row.team,
+      clubKey: normalizeText(row.team),
+      goals: toNumber(row.goals),
+      xg: toNumber(row.xg),
+      assists: toNumber(row.assists),
+      xa: toNumber(row.xa),
+      shots: toNumber(row.shots),
+      keyPasses: toNumber(row.key_passes),
+      minutes: toNumber(row.minutes),
+      matches: toNumber(row.matches),
+      xgChain: toNumber(row.xg_chain),
+      xgBuildup: toNumber(row.xg_buildup),
+    };
+    const nameKey = normalizeText(row.player);
+    const clubKey = normalizeText(row.team);
+    const compositeKey = `${nameKey}::${clubKey}`;
+    const entries = index.get(nameKey) ?? [];
+
+    entries.push(entry);
+    index.set(nameKey, entries);
+    index.set(compositeKey, [entry]);
+  });
+
+  return index;
+}
+
+function findUnderstatEntry(row, understatIndex) {
+  const nameKey = normalizeText(row.Player);
+  const clubKey = normalizeText(row.Squad);
+  const compositeKey = `${nameKey}::${clubKey}`;
+  const exactMatch = understatIndex.get(compositeKey);
+
+  if (exactMatch?.[0]) {
+    return exactMatch[0];
+  }
+
+  const candidates = understatIndex.get(nameKey) ?? [];
+
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+
+  if (candidates.length > 1) {
+    const bestClubMatch = candidates.find(
+      (candidate) => similarity(clubKey, candidate.clubKey) >= 0.45,
+    );
+
+    if (bestClubMatch) {
+      return bestClubMatch;
+    }
+
+    return candidates[0];
+  }
+
+  return null;
 }
 
 function scoreSofascoreCandidate(fbrefRow, sofascoreRow, isGoalkeeper) {
@@ -398,7 +511,7 @@ function matchSofascoreRows(fbrefRows, sofascoreByLeague) {
   return matches;
 }
 
-function computeRanges(rows, sofascoreMatches, transfermarktEntries) {
+function computeRanges(rows, sofascoreMatches, transfermarktEntries, understatEntries) {
   const metrics = {
     shooting: [],
     passing: [],
@@ -416,19 +529,23 @@ function computeRanges(rows, sofascoreMatches, transfermarktEntries) {
   rows.forEach((row, index) => {
     const sofascore = sofascoreMatches.get(index);
     const transfermarkt = transfermarktEntries.get(index);
+    const understat = understatEntries.get(index);
     const rating = toNumber(sofascore?.rating);
-    const shots = toNumber(sofascore?.total_shots) || toNumber(row.Sh);
+    const shots = understat?.shots || toNumber(sofascore?.total_shots) || toNumber(row.Sh);
     const shotsOnTarget = toNumber(sofascore?.shots_on_target) || toNumber(row.SoT);
     const tackles = toNumber(sofascore?.tackles) || toNumber(row.TklW);
     const interceptions = toNumber(sofascore?.interceptions) || toNumber(row.Int);
     const saves = toNumber(sofascore?.saves) || toNumber(row.Saves);
-    const xg = toNumber(sofascore?.expected_goals);
-    const xa = toNumber(sofascore?.expected_assists);
+    const xg = understat?.xg || toNumber(sofascore?.expected_goals);
+    const xa = understat?.xa || toNumber(sofascore?.expected_assists);
     const availability = computeAvailability(row);
     const marketValue = Math.max(0, Math.log2((transfermarkt?.marketValueEur ?? 0) / 1_000_000 + 1));
     const subPosition = normalizeText(transfermarkt?.subPosition ?? '');
     const wingerBias = subPosition.includes('winger') ? 8 : 0;
     const creatorBias = subPosition.includes('attacking midfield') ? 6 : 0;
+    const understatConfidence = computeUnderstatConfidence(understat);
+    const chainImpact = (understat?.xgChain ?? 0) * understatConfidence;
+    const buildupImpact = (understat?.xgBuildup ?? 0) * understatConfidence;
 
     metrics.shooting.push(
       toNumber(row.Gls) * 15 +
@@ -441,6 +558,7 @@ function computeRanges(rows, sofascoreMatches, transfermarktEntries) {
     metrics.passing.push(
       toNumber(row.Ast) * 14 +
         xa * 10 +
+        (understat?.keyPasses ?? 0) * (0.5 + understatConfidence * 0.2) +
         toNumber(row.Crs) * 0.9 +
         rating * 5 +
         creatorBias,
@@ -448,6 +566,8 @@ function computeRanges(rows, sofascoreMatches, transfermarktEntries) {
     metrics.dribbling.push(
       shotsOnTarget * 1.2 +
         toNumber(row.Fld) * 1.5 +
+        chainImpact * 1.2 +
+        buildupImpact * 0.9 +
         toNumber(row.Crs) * 0.4 +
         rating * 7 +
         wingerBias +
@@ -465,6 +585,7 @@ function computeRanges(rows, sofascoreMatches, transfermarktEntries) {
       toNumber(row['Sh/90']) * 10 +
         shotsOnTarget * 0.8 +
         toNumber(row.Fld) * 1.1 +
+        chainImpact * 0.2 +
         rating * 4 +
         wingerBias +
         Math.max(0, 28 - toNumber(row.Age)) * 0.6,
@@ -477,16 +598,24 @@ function computeRanges(rows, sofascoreMatches, transfermarktEntries) {
         Math.max(0, toNumber(transfermarkt?.heightInCm) - 175) * 0.15,
     );
     metrics.goalkeeping.push(
-      toNumber(row['Save%']) * 0.8 +
-        saves * 1.3 +
-        toNumber(row.CS) * 0.8 -
-        toNumber(row.GA90) * 8 +
+      toNumber(row['Save%']) * 1.25 +
+        Math.min(saves, 85) * 0.45 +
+        toNumber(row.CS) * 1.1 -
+        toNumber(row.GA90) * 14 +
         rating * 4,
     );
     metrics.handling.push(
-      toNumber(row['Save%']) * 0.55 + toNumber(row.CS) * 0.5 - toNumber(row.GA90) * 4,
+      toNumber(row['Save%']) * 0.8 +
+        toNumber(row.CS) * 0.65 -
+        toNumber(row.GA90) * 6 +
+        rating * 2.5,
     );
-    metrics.reflexes.push(saves * 1.5 + toNumber(row['Save%']) * 0.45 + rating * 3.5);
+    metrics.reflexes.push(
+      Math.min(saves, 90) * 0.8 +
+        toNumber(row['Save%']) * 0.55 -
+        toNumber(row.GA90) * 2.5 +
+        rating * 3.2,
+    );
     metrics.distribution.push(rating * 6 + toNumber(row.Crs) * 0.25 + availability * 0.4);
     metrics.aerial.push(
       toNumber(row.CS) * 0.6 +
@@ -506,22 +635,34 @@ function computeRanges(rows, sofascoreMatches, transfermarktEntries) {
   );
 }
 
-function buildOutfieldStats(row, sofascore, transfermarkt, ranges, position) {
+function buildOutfieldStats(row, sofascore, transfermarkt, understat, ranges, position) {
+  const understatConfidence = computeUnderstatConfidence(understat);
+  const understatXg = (understat?.xg ?? 0) * understatConfidence;
+  const understatXa = (understat?.xa ?? 0) * understatConfidence;
+  const understatShots = (understat?.shots ?? 0) * (0.35 + understatConfidence * 0.65);
+  const understatKeyPasses =
+    (understat?.keyPasses ?? 0) * (0.35 + understatConfidence * 0.45);
+  const understatChain = (understat?.xgChain ?? 0) * understatConfidence;
+  const understatBuildup = (understat?.xgBuildup ?? 0) * understatConfidence;
+
   const shootingRaw =
     toNumber(row.Gls) * 15 +
-    toNumber(sofascore?.expected_goals) * 9 +
-    (toNumber(sofascore?.total_shots) || toNumber(row.Sh)) * 0.7 +
+    (understatXg || toNumber(sofascore?.expected_goals)) * 9 +
+    (understatShots || toNumber(sofascore?.total_shots) || toNumber(row.Sh)) * 0.7 +
     (toNumber(sofascore?.shots_on_target) || toNumber(row.SoT)) * 2.2 +
     toNumber(row['Sh/90']) * 8 +
     Math.log2((transfermarkt?.marketValueEur ?? 0) / 1_000_000 + 1) * 2;
   const passingRaw =
     toNumber(row.Ast) * 14 +
-    toNumber(sofascore?.expected_assists) * 10 +
+    (understatXa || toNumber(sofascore?.expected_assists)) * 10 +
+    understatKeyPasses * 0.85 +
     toNumber(row.Crs) * 0.9 +
     toNumber(sofascore?.rating) * 5;
   const dribblingRaw =
     (toNumber(sofascore?.shots_on_target) || toNumber(row.SoT)) * 1.2 +
     toNumber(row.Fld) * 1.5 +
+    understatChain * 0.7 +
+    understatBuildup * 0.45 +
     toNumber(row.Crs) * 0.4 +
     toNumber(sofascore?.rating) * 7 +
     Math.log2((transfermarkt?.marketValueEur ?? 0) / 1_000_000 + 1) * 2.5;
@@ -535,6 +676,7 @@ function buildOutfieldStats(row, sofascore, transfermarkt, ranges, position) {
     toNumber(row['Sh/90']) * 10 +
     (toNumber(sofascore?.shots_on_target) || toNumber(row.SoT)) * 0.8 +
     toNumber(row.Fld) * 1.1 +
+    understatChain * 0.15 +
     toNumber(sofascore?.rating) * 4 +
     Math.max(0, 28 - toNumber(row.Age)) * 0.6;
   const physicalRaw =
@@ -558,11 +700,20 @@ function buildOutfieldStats(row, sofascore, transfermarkt, ranges, position) {
     aerial: 0,
   };
 
+  if (position === 'CB' || position === 'CDM') {
+    stats.defense = clamp(softCap(stats.defense, 84, 0.45));
+  }
+
   if (position === 'CB') {
-    stats.defense = clamp(stats.defense * 1.15);
-    stats.physical = clamp(stats.physical * 1.08);
-    stats.dribbling = clamp(stats.dribbling * 0.72);
-    stats.shooting = clamp(stats.shooting * 0.58);
+    stats.physical = clamp(softCap(stats.physical, 82, 0.6));
+  }
+
+  if (position === 'CB') {
+    stats.defense = clamp(stats.defense * 1.08);
+    stats.physical = clamp(stats.physical * 1.1);
+    stats.dribbling = clamp(stats.dribbling * 0.62);
+    stats.pace = clamp(stats.pace * 0.86);
+    stats.shooting = clamp(stats.shooting * 0.48);
   } else if (position === 'RB') {
     stats.pace = clamp(stats.pace * 1.1);
     stats.passing = clamp(stats.passing * 1.05);
@@ -602,17 +753,21 @@ function buildOutfieldStats(row, sofascore, transfermarkt, ranges, position) {
 
 function buildGoalkeeperStats(row, sofascore, transfermarkt, ranges) {
   const goalkeepingRaw =
-    toNumber(row['Save%']) * 0.8 +
-    (toNumber(sofascore?.saves) || toNumber(row.Saves)) * 1.3 +
-    toNumber(row.CS) * 0.8 -
-    toNumber(row.GA90) * 8 +
+    toNumber(row['Save%']) * 1.25 +
+    Math.min(toNumber(sofascore?.saves) || toNumber(row.Saves), 85) * 0.45 +
+    toNumber(row.CS) * 1.1 -
+    toNumber(row.GA90) * 14 +
     toNumber(sofascore?.rating) * 4;
   const handlingRaw =
-    toNumber(row['Save%']) * 0.55 + toNumber(row.CS) * 0.5 - toNumber(row.GA90) * 4;
+    toNumber(row['Save%']) * 0.8 +
+    toNumber(row.CS) * 0.65 -
+    toNumber(row.GA90) * 6 +
+    toNumber(sofascore?.rating) * 2.5;
   const reflexesRaw =
-    (toNumber(sofascore?.saves) || toNumber(row.Saves)) * 1.5 +
-    toNumber(row['Save%']) * 0.45 +
-    toNumber(sofascore?.rating) * 3.5;
+    Math.min(toNumber(sofascore?.saves) || toNumber(row.Saves), 90) * 0.8 +
+    toNumber(row['Save%']) * 0.55 -
+    toNumber(row.GA90) * 2.5 +
+    toNumber(sofascore?.rating) * 3.2;
   const distributionRaw = toNumber(sofascore?.rating) * 6 + computeAvailability(row) * 0.4;
   const aerialRaw =
     toNumber(row.CS) * 0.6 +
@@ -635,16 +790,36 @@ function buildGoalkeeperStats(row, sofascore, transfermarkt, ranges) {
     48 + normalize(aerialRaw, ranges.aerial.min, ranges.aerial.max) * 0.34,
   );
 
+  const marketValueMillions = (transfermarkt?.marketValueEur ?? 0) / 1_000_000;
+  const peakMarketValueMillions = Math.max(
+    marketValueMillions,
+    (transfermarkt?.highestMarketValueEur ?? 0) / 1_000_000,
+  );
+
+  let tunedGoalkeeping = goalkeeping;
+  let tunedReflexes = reflexes;
+  let tunedHandling = handling;
+
+  if (peakMarketValueMillions < 15) {
+    tunedGoalkeeping = clamp(softCap(tunedGoalkeeping, 86, 0.45));
+    tunedReflexes = clamp(softCap(tunedReflexes, 82, 0.52));
+    tunedHandling = clamp(softCap(tunedHandling, 80, 0.52));
+  } else if (peakMarketValueMillions < 30) {
+    tunedGoalkeeping = clamp(softCap(tunedGoalkeeping, 88, 0.58));
+    tunedReflexes = clamp(softCap(tunedReflexes, 84, 0.65));
+    tunedHandling = clamp(softCap(tunedHandling, 82, 0.65));
+  }
+
   return {
     pace: clamp(34 + normalize(reflexesRaw, ranges.reflexes.min, ranges.reflexes.max) * 0.12),
     shooting: 8,
     passing: distribution,
     dribbling: clamp(20 + distribution * 0.24),
-    defense: clamp(goalkeeping * 0.9),
+    defense: clamp(tunedGoalkeeping * 0.9),
     physical: clamp(48 + normalize(aerialRaw, ranges.aerial.min, ranges.aerial.max) * 0.28),
-    goalkeeping,
-    reflexes,
-    handling,
+    goalkeeping: tunedGoalkeeping,
+    reflexes: tunedReflexes,
+    handling: tunedHandling,
     distribution,
     aerial,
   };
@@ -653,11 +828,11 @@ function buildGoalkeeperStats(row, sofascore, transfermarkt, ranges) {
 function computeBaseOverall(position, stats) {
   if (position === 'GK') {
     return clamp(
-      stats.goalkeeping * 0.54 +
-        (stats.reflexes ?? stats.goalkeeping ?? 50) * 0.19 +
-        (stats.handling ?? stats.goalkeeping ?? 50) * 0.13 +
+      stats.goalkeeping * 0.46 +
+        (stats.reflexes ?? stats.goalkeeping ?? 50) * 0.22 +
+        (stats.handling ?? stats.goalkeeping ?? 50) * 0.18 +
         (stats.distribution ?? stats.passing) * 0.08 +
-        (stats.aerial ?? stats.physical) * 0.04 +
+        (stats.aerial ?? stats.physical) * 0.03 +
         stats.physical * 0.03,
       58,
       88,
@@ -785,7 +960,18 @@ function computeTransfermarktOverall(
 
   const currentMarketValue = Math.max(0, marketValueEur);
   const peakMarketValue = Math.max(currentMarketValue, highestMarketValueEur || 0);
-  const peakShare = age >= 31 ? 0.4 : age >= 28 ? 0.32 : 0.22;
+  const peakShare =
+    position === 'GK'
+      ? age >= 31
+        ? 0.74
+        : age >= 28
+          ? 0.58
+          : 0.28
+      : age >= 31
+        ? 0.7
+        : age >= 28
+          ? 0.5
+          : 0.22;
   const effectiveMarketValue = Math.max(
     currentMarketValue,
     currentMarketValue * (1 - peakShare) + peakMarketValue * peakShare,
@@ -801,16 +987,19 @@ function computeEliteRoleBonus(position, stats, age, marketValueMillions, sofasc
   if (position === 'GK') {
     let bonus = 0;
     if ((stats.goalkeeping ?? 0) >= 90) {
-      bonus += 1.1;
+      bonus += 1.4;
     }
     if ((stats.reflexes ?? 0) >= 82 && (stats.handling ?? 0) >= 80) {
-      bonus += 0.7;
+      bonus += 0.9;
     }
     if (marketValueMillions >= 40) {
-      bonus += 0.5;
+      bonus += 0.8;
     }
     if (age >= 29 && (stats.goalkeeping ?? 0) >= 81 && (stats.handling ?? 0) >= 77) {
-      bonus += 0.8;
+      bonus += 1.1;
+    }
+    if (marketValueMillions >= 15 && age >= 30) {
+      bonus += 1;
     }
     if ((stats.aerial ?? 0) >= 77) {
       bonus += 0.25;
@@ -821,16 +1010,22 @@ function computeEliteRoleBonus(position, stats, age, marketValueMillions, sofasc
   if (position === 'CB') {
     let bonus = 0;
     if (stats.defense >= 88) {
-      bonus += 1.1;
+      bonus += 1.5;
     }
     if (stats.physical >= 70) {
-      bonus += 0.5;
+      bonus += 0.8;
     }
     if (marketValueMillions >= 70) {
-      bonus += 0.6;
+      bonus += 1.2;
+    }
+    if (marketValueMillions >= 35) {
+      bonus += 0.55;
     }
     if (age >= 29 && stats.defense >= 68 && stats.physical >= 70) {
-      bonus += 1.15;
+      bonus += 1.35;
+    }
+    if (marketValueMillions >= 15 && age >= 30) {
+      bonus += 1;
     }
     return bonus + sofaBonus * 0.7;
   }
@@ -878,6 +1073,9 @@ function computeEliteRoleBonus(position, stats, age, marketValueMillions, sofasc
     if (stats.passing >= 68 && stats.dribbling >= 76 && stats.physical >= 64) {
       bonus += 0.4;
     }
+    if (marketValueMillions >= 25 && age >= 29) {
+      bonus += 1;
+    }
     return bonus + sofaBonus * 0.45;
   }
 
@@ -918,7 +1116,60 @@ function computeEliteRoleBonus(position, stats, age, marketValueMillions, sofasc
     if (marketValueMillions >= 80) {
       bonus += 0.45;
     }
+    if (marketValueMillions >= 25 && age >= 30) {
+      bonus += 1.25;
+    }
     return bonus + sofaBonus * 0.4;
+  }
+
+  return 0;
+}
+
+function computeVeteranEliteFloor(position, age, currentMarketValueMillions, peakMarketValueMillions) {
+  if (age < 29 || peakMarketValueMillions < 70 || currentMarketValueMillions < 8) {
+    return 0;
+  }
+
+  if (position === 'GK') {
+    if (peakMarketValueMillions >= 90) {
+      return 80;
+    }
+    if (peakMarketValueMillions >= 70) {
+      return 78;
+    }
+    return 0;
+  }
+
+  if (position === 'CB') {
+    if (peakMarketValueMillions >= 100) {
+      return 78;
+    }
+    if (peakMarketValueMillions >= 75) {
+      return 76;
+    }
+    return 0;
+  }
+
+  if (position === 'CM' || position === 'CDM' || position === 'CAM') {
+    if (peakMarketValueMillions >= 100) {
+      return 78;
+    }
+    if (peakMarketValueMillions >= 80) {
+      return 76;
+    }
+    return 0;
+  }
+
+  if (position === 'ST' || position === 'CF' || position === 'RW' || position === 'LW') {
+    if (peakMarketValueMillions >= 120) {
+      return 80;
+    }
+    if (peakMarketValueMillions >= 90) {
+      return 78;
+    }
+    if (peakMarketValueMillions >= 70) {
+      return 76;
+    }
   }
 
   return 0;
@@ -933,6 +1184,10 @@ function computeFinalOverall(baseOverall, sofascoreRating, transfermarkt, age, p
     position,
   );
   const marketValueMillions = (transfermarkt?.marketValueEur ?? 0) / 1_000_000;
+  const peakMarketValueMillions = Math.max(
+    marketValueMillions,
+    (transfermarkt?.highestMarketValueEur ?? 0) / 1_000_000,
+  );
   const statConfidence = computeStatConfidence(row);
   const hasSofascore = sofascoreOverall > 0;
   const hasTransfermarkt = transfermarktOverall > 0;
@@ -992,16 +1247,104 @@ function computeFinalOverall(baseOverall, sofascoreRating, transfermarkt, age, p
 
   blended += computeEliteRoleBonus(position, stats, age, marketValueMillions, sofascoreRating);
 
+  if (marketValueMillions > 0) {
+    const marketFloor =
+      marketValueMillions >= 150
+        ? 81
+        : marketValueMillions >= 100
+          ? 79
+          : marketValueMillions >= 70
+            ? 77
+            : marketValueMillions >= 45
+              ? 74
+              : marketValueMillions >= 25
+                ? 71
+                : 0;
+    const cbFloorBonus = position === 'CB' && marketValueMillions >= 35 ? 2 : 0;
+    const goalkeeperFloorBonus = position === 'GK' && marketValueMillions >= 25 ? 2 : 0;
+    const veteranAttackFloorBonus =
+      (position === 'ST' || position === 'CF' || position === 'RW' || position === 'LW') &&
+      age >= 30 &&
+      marketValueMillions >= 25
+        ? 2
+        : 0;
+    const veteranCreatorFloorBonus =
+      (position === 'CAM' || position === 'CM') &&
+      age >= 29 &&
+      marketValueMillions >= 25
+        ? 2
+        : 0;
+    const effectiveFloor =
+      marketFloor +
+      cbFloorBonus +
+      goalkeeperFloorBonus +
+      veteranAttackFloorBonus +
+      veteranCreatorFloorBonus;
+
+    if (effectiveFloor > 0) {
+      blended = Math.max(blended, effectiveFloor);
+    }
+  }
+
+  const veteranEliteFloor = computeVeteranEliteFloor(
+    position,
+    age,
+    marketValueMillions,
+    peakMarketValueMillions,
+  );
+  if (veteranEliteFloor > 0) {
+    blended = Math.max(blended, veteranEliteFloor);
+  }
+
+  if (
+    position === 'CB' &&
+    marketValueMillions < 25 &&
+    peakMarketValueMillions < 35 &&
+    stats.defense >= 84
+  ) {
+    blended -= 5;
+  } else if (
+    position === 'CB' &&
+    marketValueMillions < 35 &&
+    peakMarketValueMillions < 45 &&
+    stats.defense >= 80
+  ) {
+    blended -= 3;
+  }
+
+  if (
+    position === 'GK' &&
+    marketValueMillions < 5 &&
+    peakMarketValueMillions < 15 &&
+    (stats.goalkeeping ?? 0) >= 90
+  ) {
+    blended -= 8;
+  } else if (
+    position === 'GK' &&
+    marketValueMillions < 10 &&
+    peakMarketValueMillions < 25 &&
+    (stats.goalkeeping ?? 0) >= 88
+  ) {
+    blended -= 6;
+  } else if (
+    position === 'GK' &&
+    marketValueMillions < 15 &&
+    peakMarketValueMillions < 35 &&
+    (stats.goalkeeping ?? 0) >= 86
+  ) {
+    blended -= 3;
+  }
+
   return clamp(blended, 56, 89);
 }
 
-function buildPlayer(row, index, sofascore, transfermarkt, ranges) {
+function buildPlayer(row, index, sofascore, transfermarkt, understat, ranges) {
   const position = mapPosition(row.Pos || '', transfermarkt);
   const age = Math.round(toNumber(row.Age));
   const stats =
     position === 'GK'
       ? buildGoalkeeperStats(row, sofascore, transfermarkt, ranges)
-      : buildOutfieldStats(row, sofascore, transfermarkt, ranges, position);
+      : buildOutfieldStats(row, sofascore, transfermarkt, understat, ranges, position);
   const rating = computeFinalOverall(
     computeBaseOverall(position, stats),
     toNumber(sofascore?.rating),
@@ -1043,24 +1386,32 @@ function main() {
   );
   const sofascoreRows = parseCsv(fs.readFileSync(sofascorePath, 'utf8'));
   const transfermarktRows = parseCsv(fs.readFileSync(transfermarktPath, 'utf8'));
+  const understatRows = fs.existsSync(understatPath)
+    ? parseCsv(fs.readFileSync(understatPath, 'utf8'))
+    : [];
 
   const transfermarktIndex = buildTransfermarktIndex(transfermarktRows);
+  const understatIndex = buildUnderstatIndex(understatRows);
   const transfermarktEntries = new Map();
+  const understatEntries = new Map();
 
   fbrefRows.forEach((row, index) => {
     transfermarktEntries.set(index, findTransfermarktEntry(row, transfermarktIndex));
+    understatEntries.set(index, findUnderstatEntry(row, understatIndex));
   });
 
   const sofascoreMatches = matchSofascoreRows(fbrefRows, buildSofascoreIndex(sofascoreRows));
-  const ranges = computeRanges(fbrefRows, sofascoreMatches, transfermarktEntries);
+  const ranges = computeRanges(fbrefRows, sofascoreMatches, transfermarktEntries, understatEntries);
 
   let transfermarktMatchCount = 0;
   let sofascoreMatchCount = 0;
+  let understatMatchCount = 0;
 
   const players = fbrefRows
     .map((row, index) => {
       const transfermarktEntry = transfermarktEntries.get(index) ?? null;
       const sofascoreEntry = sofascoreMatches.get(index) ?? null;
+      const understatEntry = understatEntries.get(index) ?? null;
 
       if (transfermarktEntry) {
         transfermarktMatchCount += 1;
@@ -1070,14 +1421,18 @@ function main() {
         sofascoreMatchCount += 1;
       }
 
-      return buildPlayer(row, index, sofascoreEntry, transfermarktEntry, ranges);
+      if (understatEntry) {
+        understatMatchCount += 1;
+      }
+
+      return buildPlayer(row, index, sofascoreEntry, transfermarktEntry, understatEntry, ranges);
     })
     .sort((a, b) => b.rating - a.rating || b.value - a.value);
 
   fs.writeFileSync(outputPath, `${JSON.stringify(players, null, 2)}\n`, 'utf8');
 
   console.log(
-    `Generated ${players.length} players into ${outputPath} (${transfermarktMatchCount} matched with Transfermarkt, ${sofascoreMatchCount} matched with Sofascore)`,
+    `Generated ${players.length} players into ${outputPath} (${transfermarktMatchCount} matched with Transfermarkt, ${sofascoreMatchCount} matched with Sofascore, ${understatMatchCount} matched with Understat)`,
   );
 }
 

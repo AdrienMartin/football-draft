@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "generate:players": "node scripts/generate-players-from-csv.mjs"
+    "generate:players": "node scripts/generate-players-from-csv.mjs",
+    "fetch:transfermarkt": "node scripts/fetch-transfermarkt-dataset.mjs",
+    "fetch:soccerdata": "python scripts/fetch-player-sources-with-soccerdata.py"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

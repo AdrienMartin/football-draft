@@ -39,3 +39,11 @@ desktop.ini
 # Misc
 *.bak
 *.tmp
+
+# Generated soccerdata extracts
+/public/data/tmp/
+
+# Local data-fetch credentials and scratch folders
+/.kaggle/
+/downloaded_files/
+/tmp/
