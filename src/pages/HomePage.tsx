@@ -20,7 +20,7 @@ import { subscribeToMultiplayerRoom } from '../lib/multiplayer/rooms';
 import { loadPlayers } from '../lib/players/loadPlayers';
 import { useGameStore } from '../store/useGameStore';
 
-type SortOption = 'rating-desc' | 'name-asc' | 'name-desc';
+type SortOption = 'rating-desc' | 'value-desc' | 'value-asc' | 'name-asc' | 'name-desc';
 
 const PLAYERS_PER_PAGE = 5;
 
@@ -32,6 +32,10 @@ export function HomePage() {
   const [selectedNationality, setSelectedNationality] = useState('ALL');
   const [selectedLeague, setSelectedLeague] = useState('ALL');
   const [selectedClub, setSelectedClub] = useState('ALL');
+  const [minAge, setMinAge] = useState('');
+  const [maxAge, setMaxAge] = useState('');
+  const [minValue, setMinValue] = useState('');
+  const [maxValue, setMaxValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('rating-desc');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -136,13 +140,51 @@ export function HomePage() {
       ? leagueFilteredPlayers
       : leagueFilteredPlayers.filter((player) => player.club === selectedClub);
 
+  const ageFilteredPlayers = clubFilteredPlayers.filter((player) => {
+    const parsedMinAge = Number.parseInt(minAge, 10);
+    const parsedMaxAge = Number.parseInt(maxAge, 10);
+    const matchesMinAge = Number.isNaN(parsedMinAge) || player.age >= parsedMinAge;
+    const matchesMaxAge = Number.isNaN(parsedMaxAge) || player.age <= parsedMaxAge;
+
+    return matchesMinAge && matchesMaxAge;
+  });
+
+  const valueFilteredPlayers = ageFilteredPlayers.filter((player) => {
+    const parsedMinValue = Number.parseInt(minValue, 10);
+    const parsedMaxValue = Number.parseInt(maxValue, 10);
+    const matchesMinValue = Number.isNaN(parsedMinValue) || player.value >= parsedMinValue;
+    const matchesMaxValue = Number.isNaN(parsedMaxValue) || player.value <= parsedMaxValue;
+
+    return matchesMinValue && matchesMaxValue;
+  });
+
   const searchFilteredPlayers = searchQuery.trim()
-    ? clubFilteredPlayers.filter((player) =>
+    ? valueFilteredPlayers.filter((player) =>
         player.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
       )
-    : clubFilteredPlayers;
+    : valueFilteredPlayers;
 
   const sortedPlayers = [...searchFilteredPlayers].sort((left, right) => {
+    if (sortOption === 'value-desc') {
+      if (right.value !== left.value) {
+        return right.value - left.value;
+      }
+
+      return right.rating !== left.rating
+        ? right.rating - left.rating
+        : left.name.localeCompare(right.name);
+    }
+
+    if (sortOption === 'value-asc') {
+      if (left.value !== right.value) {
+        return left.value - right.value;
+      }
+
+      return right.rating !== left.rating
+        ? right.rating - left.rating
+        : left.name.localeCompare(right.name);
+    }
+
     if (sortOption === 'name-asc') {
       return left.name.localeCompare(right.name);
     }
@@ -201,6 +243,10 @@ export function HomePage() {
     selectedNationality,
     selectedLeague,
     selectedClub,
+    minAge,
+    maxAge,
+    minValue,
+    maxValue,
     sortOption,
     sortedPlayers.length,
   ]);
@@ -210,6 +256,20 @@ export function HomePage() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  const resetDraftFilters = () => {
+    setSelectedRole('ALL');
+    setSearchQuery('');
+    setSelectedNationality('ALL');
+    setSelectedLeague('ALL');
+    setSelectedClub('ALL');
+    setMinAge('');
+    setMaxAge('');
+    setMinValue('');
+    setMaxValue('');
+    setSortOption('rating-desc');
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     async function initializePage() {
@@ -379,6 +439,15 @@ export function HomePage() {
             clubOptions={clubOptions}
             selectedClub={selectedClub}
             onSelectClub={setSelectedClub}
+            minAge={minAge}
+            maxAge={maxAge}
+            onMinAgeChange={setMinAge}
+            onMaxAgeChange={setMaxAge}
+            minValue={minValue}
+            maxValue={maxValue}
+            onMinValueChange={setMinValue}
+            onMaxValueChange={setMaxValue}
+            onResetFilters={resetDraftFilters}
             sortOption={sortOption}
             onSelectSort={setSortOption}
             requiredRoles={requiredRoles}

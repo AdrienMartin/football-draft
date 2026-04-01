@@ -224,6 +224,20 @@ function applyNationalityOverrides(name, nationality) {
   return nationality;
 }
 
+function applyAgeOverrides(name, age) {
+  const normalizedName = normalizeText(name);
+
+  if (
+    normalizedName === 'yael trepy' ||
+    normalizedName === 'cheveyo muy' ||
+    normalizedName === 'andres antanon'
+  ) {
+    return 19;
+  }
+
+  return age;
+}
+
 function mapPosition(pos, transfermarktEntry) {
   const normalizedPos = normalizeText(pos);
   const subPosition = normalizeText(transfermarktEntry?.subPosition ?? '');
@@ -1498,7 +1512,7 @@ function computeFinalOverall(baseOverall, sofascoreRating, transfermarkt, age, p
 
 function buildPlayer(row, index, sofascore, transfermarkt, understat, ranges) {
   const position = mapPosition(row.Pos || '', transfermarkt);
-  const age = Math.round(toNumber(row.Age));
+  const age = applyAgeOverrides(row.Player, Math.round(toNumber(row.Age)));
   const stats =
     position === 'GK'
       ? buildGoalkeeperStats(row, sofascore, transfermarkt, ranges)

@@ -24,8 +24,19 @@ type DraftAvailablePlayersProps = {
   clubOptions: string[];
   selectedClub: string;
   onSelectClub: (value: string) => void;
-  sortOption: 'rating-desc' | 'name-asc' | 'name-desc';
-  onSelectSort: (value: 'rating-desc' | 'name-asc' | 'name-desc') => void;
+  minAge: string;
+  maxAge: string;
+  onMinAgeChange: (value: string) => void;
+  onMaxAgeChange: (value: string) => void;
+  minValue: string;
+  maxValue: string;
+  onMinValueChange: (value: string) => void;
+  onMaxValueChange: (value: string) => void;
+  onResetFilters: () => void;
+  sortOption: 'rating-desc' | 'value-desc' | 'value-asc' | 'name-asc' | 'name-desc';
+  onSelectSort: (
+    value: 'rating-desc' | 'value-desc' | 'value-asc' | 'name-asc' | 'name-desc',
+  ) => void;
   requiredRoles: PlayerRole[];
   maxTeamValue: number | null;
   currentTeamValue: number;
@@ -54,6 +65,15 @@ export function DraftAvailablePlayers({
   clubOptions,
   selectedClub,
   onSelectClub,
+  minAge,
+  maxAge,
+  onMinAgeChange,
+  onMaxAgeChange,
+  minValue,
+  maxValue,
+  onMinValueChange,
+  onMaxValueChange,
+  onResetFilters,
   sortOption,
   onSelectSort,
   requiredRoles,
@@ -98,110 +118,196 @@ export function DraftAvailablePlayers({
         </div>
       </div>
 
-      <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <label className="text-sm text-slate-300 xl:col-span-1">
-          <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-            Recherche
-          </span>
-          <div className="relative">
-            <input
-              value={searchQuery}
-              onChange={(event) => onSearchQueryChange(event.target.value)}
-              placeholder="Nom du joueur"
-              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 pr-11 text-sm text-white outline-none"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchQueryChange('')}
-                aria-label="Reinitialiser la recherche"
-                className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+      <div className="mb-5 space-y-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-14">
+          <div className="grid gap-3 md:grid-cols-2 xl:col-span-7">
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+                Recherche
+              </span>
+              <div className="relative">
+                <input
+                  value={searchQuery}
+                  onChange={(event) => onSearchQueryChange(event.target.value)}
+                  placeholder="Nom du joueur"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 pr-11 text-sm text-white outline-none"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchQueryChange('')}
+                    aria-label="Reinitialiser la recherche"
+                    className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  >
+                    x
+                  </button>
+                )}
+              </div>
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+                Nationalite
+              </span>
+              <select
+                value={selectedNationality}
+                onChange={(event) => onSelectNationality(event.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
               >
-                x
-              </button>
-            )}
+                <option value="ALL">Toutes</option>
+                {nationalityOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-        </label>
 
-        <label className="text-sm text-slate-300">
-          <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-            Nationalite
-          </span>
-          <select
-            value={selectedNationality}
-            onChange={(event) => onSelectNationality(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-          >
-            <option value="ALL">Toutes</option>
-            {nationalityOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
+          <div className="grid gap-3 md:grid-cols-2 xl:col-span-7">
+            <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Championnat
+            </span>
+            <select
+              value={selectedLeague}
+              onChange={(event) => onSelectLeague(event.target.value)}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+            >
+              <option value="ALL">Tous</option>
+              {leagueOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            </label>
+
+            <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Club
+            </span>
+            <select
+              value={selectedClub}
+              onChange={(event) => onSelectClub(event.target.value)}
+              disabled={selectedLeague === 'ALL' || clubOptions.length === 0}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="ALL">
+                {selectedLeague === 'ALL' ? 'Choisis un championnat' : 'Tous'}
               </option>
-            ))}
-          </select>
-        </label>
+              {clubOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            </label>
+          </div>
+        </div>
 
-        <label className="text-sm text-slate-300">
-          <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-            Championnat
-          </span>
-          <select
-            value={selectedLeague}
-            onChange={(event) => onSelectLeague(event.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-          >
-            <option value="ALL">Tous</option>
-            {leagueOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-14">
+          <div className="grid gap-3 md:grid-cols-2 xl:col-span-5">
+            <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Age min
+            </span>
+            <input
+              type="number"
+              min={0}
+              value={minAge}
+              onChange={(event) => onMinAgeChange(event.target.value)}
+              placeholder="Ex. 21"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+            />
+            </label>
 
-        <label className="text-sm text-slate-300">
-          <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-            Club
-          </span>
-          <select
-            value={selectedClub}
-            onChange={(event) => onSelectClub(event.target.value)}
-            disabled={selectedLeague === 'ALL' || clubOptions.length === 0}
-            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <option value="ALL">
-              {selectedLeague === 'ALL' ? 'Choisis un championnat' : 'Tous'}
-            </option>
-            {clubOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+            <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Age max
+            </span>
+            <input
+              type="number"
+              min={0}
+              value={maxAge}
+              onChange={(event) => onMaxAgeChange(event.target.value)}
+              placeholder="Ex. 30"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+            />
+            </label>
+          </div>
 
-        <label className="text-sm text-slate-300">
+          <div className="grid gap-3 md:grid-cols-2 xl:col-span-5">
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Valeur min (M)
+              </span>
+              <input
+                type="number"
+                min={0}
+              value={minValue}
+              onChange={(event) => onMinValueChange(event.target.value)}
+              placeholder="Ex. 10"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+            />
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Valeur max (M)
+              </span>
+              <input
+                type="number"
+                min={0}
+              value={maxValue}
+              onChange={(event) => onMaxValueChange(event.target.value)}
+              placeholder="Ex. 50"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+            />
+            </label>
+          </div>
+
+          <label className="text-sm text-slate-300 xl:col-span-4">
           <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
             Tri
           </span>
           <select
             value={sortOption}
             onChange={(event) =>
-              onSelectSort(event.target.value as 'rating-desc' | 'name-asc' | 'name-desc')
+              onSelectSort(
+                event.target.value as
+                  | 'rating-desc'
+                  | 'value-desc'
+                  | 'value-asc'
+                  | 'name-asc'
+                  | 'name-desc',
+              )
             }
             className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
           >
             <option value="rating-desc">Note generale</option>
+            <option value="value-desc">Valeur decroissante</option>
+            <option value="value-asc">Valeur croissante</option>
             <option value="name-asc">Alphabetique A-Z</option>
             <option value="name-desc">Alphabetique Z-A</option>
           </select>
-        </label>
+          </label>
+        </div>
       </div>
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-400">
-          {formatPlayerCount(totalFilteredPlayers)} • Page {currentPage} sur {totalPages}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-slate-400">
+            {formatPlayerCount(totalFilteredPlayers)} • Page {currentPage} sur {totalPages}
+          </p>
+          <button
+            type="button"
+            onClick={onResetFilters}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
+          >
+            Reinitialiser les filtres
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <button
             type="button"
