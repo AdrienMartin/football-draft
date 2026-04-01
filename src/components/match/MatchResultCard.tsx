@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MatchEvent, MatchResult } from '../../lib/game/simulation';
 import { buildFullTimeSummary, buildHalfTimeSummary } from '../../lib/game/matchCommentary';
+import {
+  buildScorerSummary,
+  buildVisibleStats,
+  toNumericCommentaryStats,
+} from '../../lib/game/matchResultHelpers';
 import type { Player } from '../../types/player';
 import { TeamPitch } from './TeamPitch';
 
@@ -89,27 +94,6 @@ function getEventBadgeLabel(event: MatchEvent) {
   }
 }
 
-function buildScorerSummary(events: MatchEvent[]) {
-  const goals = events.filter((event) => event.type === 'goal');
-  const userScorers = new Map<string, number>();
-  const aiScorers = new Map<string, number>();
-
-  goals.forEach((event) => {
-    const scorerName = event.scorer?.trim() || 'Buteur non identifie';
-    const scorers = event.team === 'user' ? userScorers : aiScorers;
-    scorers.set(scorerName, (scorers.get(scorerName) ?? 0) + 1);
-  });
-
-  return {
-    user: [...userScorers.entries()].map(
-      ([name, total]) => `${name}${total > 1 ? ` x${total}` : ''}`,
-    ),
-    ai: [...aiScorers.entries()].map(
-      ([name, total]) => `${name}${total > 1 ? ` x${total}` : ''}`,
-    ),
-  };
-}
-
 function getInitialMinute(startedAt: string | null | undefined) {
   if (!startedAt) {
     return 0;
@@ -156,49 +140,6 @@ function adaptOpponentText(text: string, opponentLabel: string) {
     .replace(/L['’]IA/g, parts.sentenceLabel)
     .replace(/l['’]IA/g, parts.sentenceLabel)
     .replace(/\bIA\b/g, parts.plainName);
-}
-
-function roundXg(value: number) {
-  return (Math.round(value * 100) / 100).toFixed(2);
-}
-
-function isCountedShotEvent(event: MatchEvent) {
-  return event.type === 'shot' || event.type === 'save' || event.type === 'goal' || event.type === 'block';
-}
-
-function buildVisibleStats(result: MatchResult, visibleEvents: MatchEvent[]) {
-  const userShotEvents = visibleEvents.filter(
-    (event) => event.team === 'user' && isCountedShotEvent(event),
-  );
-  const aiShotEvents = visibleEvents.filter(
-    (event) => event.team === 'ai' && isCountedShotEvent(event),
-  );
-
-  return {
-    user: {
-      possession: result.userStats.possession,
-      shots: userShotEvents.length,
-      shotsOnTarget: userShotEvents.filter(
-        (event) => event.type === 'save' || event.type === 'goal',
-      ).length,
-      xg: roundXg(userShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
-    },
-    ai: {
-      possession: result.aiStats.possession,
-      shots: aiShotEvents.length,
-      shotsOnTarget: aiShotEvents.filter(
-        (event) => event.type === 'save' || event.type === 'goal',
-      ).length,
-      xg: roundXg(aiShotEvents.reduce((sum, event) => sum + (event.xg ?? 0), 0)),
-    },
-  };
-}
-
-function toNumericCommentaryStats(stats: ReturnType<typeof buildVisibleStats>['user']) {
-  return {
-    ...stats,
-    xg: Number(stats.xg),
-  };
 }
 
 function MatchSummaryCard({

@@ -159,4 +159,34 @@ describe('multiplayer match mapping', () => {
     expect(localResult.userScore).toBe(1);
     expect(localResult.aiScore).toBe(1);
   });
+
+  it('preserves scorer, assister and xg fields across room and local remapping', () => {
+    const assistedResult: MatchResult = {
+      ...baseResult,
+      events: [
+        {
+          minute: 55,
+          team: 'user',
+          type: 'goal',
+          scorer: 'Player A',
+          assister: 'Player C',
+          xg: 0.36,
+          userScore: 1,
+          aiScore: 0,
+          text: 'Player A conclut une belle action.',
+        },
+      ],
+    };
+
+    const roomResult = toRoomMatchResult(assistedResult, 'host');
+    const localResult = toLocalMatchResult(roomResult, 'host');
+
+    expect(roomResult.events[0]?.scorer).toBe('Player A');
+    expect(roomResult.events[0]?.assister).toBe('Player C');
+    expect(roomResult.events[0]?.xg).toBe(0.36);
+
+    expect(localResult.events[0]?.scorer).toBe('Player A');
+    expect(localResult.events[0]?.assister).toBe('Player C');
+    expect(localResult.events[0]?.xg).toBe(0.36);
+  });
 });

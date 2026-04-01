@@ -33,11 +33,6 @@ type StatItem = {
   value: number;
 };
 
-type ProfileTone = {
-  badgeClassName: string;
-  label: string;
-};
-
 type PlayerCardProps = {
   player: Player;
   actionLabel?: string;
@@ -59,56 +54,6 @@ function getRatingTone(rating: number) {
   }
 
   return 'border-white/10 bg-white/5 text-slate-200';
-}
-
-function getProfileTone(player: Player): ProfileTone {
-  if (player.position === 'GK') {
-    return {
-      label:
-        (player.stats.commandOfArea ?? 0) >= (player.stats.shotStopping ?? 0)
-          ? 'Gardien de surface'
-          : 'Gardien reflexe',
-      badgeClassName: 'border-sky-300/20 bg-sky-400/10 text-sky-100',
-    };
-  }
-
-  if (player.position === 'CB' || player.position === 'CDM') {
-    return {
-      label:
-        player.stats.positioning >= player.stats.tackling
-          ? 'Lecteur defensif'
-          : 'Gagneur de duels',
-      badgeClassName: 'border-cyan-300/20 bg-cyan-400/10 text-cyan-100',
-    };
-  }
-
-  if (player.position === 'CAM' || player.position === 'CM') {
-    return {
-      label:
-        player.stats.vision >= player.stats.composure
-          ? 'Createur'
-          : 'Chef d orchestre',
-      badgeClassName: 'border-indigo-300/20 bg-indigo-400/10 text-indigo-100',
-    };
-  }
-
-  if (player.position === 'LW' || player.position === 'RW') {
-    return {
-      label:
-        player.stats.crossing >= player.stats.shooting
-          ? 'Percuteur de couloir'
-          : 'Ailier decisif',
-      badgeClassName: 'border-fuchsia-300/20 bg-fuchsia-400/10 text-fuchsia-100',
-    };
-  }
-
-  return {
-    label:
-      player.stats.positioning >= player.stats.composure
-        ? 'Finisseur de surface'
-        : 'Attaquant complet',
-    badgeClassName: 'border-rose-300/20 bg-rose-400/10 text-rose-100',
-  };
 }
 
 function getStatAccentClass(value: number) {
@@ -166,7 +111,6 @@ export function PlayerCard({
   disabled = false,
 }: PlayerCardProps) {
   const nationalityFlagCode = getNationalityFlagCode(player.nationality);
-  const profileTone = getProfileTone(player);
   const statItems = getStatItems(player);
 
   return (
@@ -203,9 +147,6 @@ export function PlayerCard({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-200">
-        <span className={`rounded-full border px-3 py-1 ${profileTone.badgeClassName}`}>
-          {profileTone.label}
-        </span>
         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
           {player.position}
         </span>

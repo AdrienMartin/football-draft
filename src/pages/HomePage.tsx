@@ -15,12 +15,14 @@ import {
   getPlayerRole,
   type PlayerRole,
 } from '../lib/game/draft';
+import {
+  filterAndSortDraftPlayers,
+  type DraftSortOption,
+} from '../lib/game/draftFilters';
 import type { DraftRules } from '../lib/game/rules';
 import { subscribeToMultiplayerRoom } from '../lib/multiplayer/rooms';
 import { loadPlayers } from '../lib/players/loadPlayers';
 import { useGameStore } from '../store/useGameStore';
-
-type SortOption = 'rating-desc' | 'value-desc' | 'value-asc' | 'name-asc' | 'name-desc';
 
 const PLAYERS_PER_PAGE = 5;
 
@@ -36,7 +38,7 @@ export function HomePage() {
   const [maxAge, setMaxAge] = useState('');
   const [minValue, setMinValue] = useState('');
   const [maxValue, setMaxValue] = useState('');
-  const [sortOption, setSortOption] = useState<SortOption>('rating-desc');
+  const [sortOption, setSortOption] = useState<DraftSortOption>('rating-desc');
   const [currentPage, setCurrentPage] = useState(1);
 
   const mode = useGameStore((state) => state.mode);
@@ -125,79 +127,17 @@ export function HomePage() {
       ? eligiblePlayers
       : eligiblePlayers.filter((player) => getPlayerRole(player.position) === selectedRole);
 
-  const nationalityFilteredPlayers =
-    selectedNationality === 'ALL'
-      ? roleFilteredPlayers
-      : roleFilteredPlayers.filter((player) => player.nationality === selectedNationality);
-
-  const leagueFilteredPlayers =
-    selectedLeague === 'ALL'
-      ? nationalityFilteredPlayers
-      : nationalityFilteredPlayers.filter((player) => player.league === selectedLeague);
-
-  const clubFilteredPlayers =
-    selectedClub === 'ALL'
-      ? leagueFilteredPlayers
-      : leagueFilteredPlayers.filter((player) => player.club === selectedClub);
-
-  const ageFilteredPlayers = clubFilteredPlayers.filter((player) => {
-    const parsedMinAge = Number.parseInt(minAge, 10);
-    const parsedMaxAge = Number.parseInt(maxAge, 10);
-    const matchesMinAge = Number.isNaN(parsedMinAge) || player.age >= parsedMinAge;
-    const matchesMaxAge = Number.isNaN(parsedMaxAge) || player.age <= parsedMaxAge;
-
-    return matchesMinAge && matchesMaxAge;
-  });
-
-  const valueFilteredPlayers = ageFilteredPlayers.filter((player) => {
-    const parsedMinValue = Number.parseInt(minValue, 10);
-    const parsedMaxValue = Number.parseInt(maxValue, 10);
-    const matchesMinValue = Number.isNaN(parsedMinValue) || player.value >= parsedMinValue;
-    const matchesMaxValue = Number.isNaN(parsedMaxValue) || player.value <= parsedMaxValue;
-
-    return matchesMinValue && matchesMaxValue;
-  });
-
-  const searchFilteredPlayers = searchQuery.trim()
-    ? valueFilteredPlayers.filter((player) =>
-        player.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
-      )
-    : valueFilteredPlayers;
-
-  const sortedPlayers = [...searchFilteredPlayers].sort((left, right) => {
-    if (sortOption === 'value-desc') {
-      if (right.value !== left.value) {
-        return right.value - left.value;
-      }
-
-      return right.rating !== left.rating
-        ? right.rating - left.rating
-        : left.name.localeCompare(right.name);
-    }
-
-    if (sortOption === 'value-asc') {
-      if (left.value !== right.value) {
-        return left.value - right.value;
-      }
-
-      return right.rating !== left.rating
-        ? right.rating - left.rating
-        : left.name.localeCompare(right.name);
-    }
-
-    if (sortOption === 'name-asc') {
-      return left.name.localeCompare(right.name);
-    }
-
-    if (sortOption === 'name-desc') {
-      return right.name.localeCompare(left.name);
-    }
-
-    if (right.rating !== left.rating) {
-      return right.rating - left.rating;
-    }
-
-    return left.name.localeCompare(right.name);
+  const sortedPlayers = filterAndSortDraftPlayers(roleFilteredPlayers, {
+    selectedRole: 'ALL',
+    searchQuery,
+    selectedNationality,
+    selectedLeague,
+    selectedClub,
+    minAge,
+    maxAge,
+    minValue,
+    maxValue,
+    sortOption,
   });
 
   const totalPages = Math.max(1, Math.ceil(sortedPlayers.length / PLAYERS_PER_PAGE));

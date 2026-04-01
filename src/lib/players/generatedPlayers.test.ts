@@ -3,10 +3,19 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 type GeneratedPlayer = {
+  name: string;
+  age: number;
   position: string;
   rating: number;
   stats: {
     goalkeeping?: number;
+    vision?: number;
+    composure?: number;
+    tackling?: number;
+    positioning?: number;
+    crossing?: number;
+    shotStopping?: number;
+    commandOfArea?: number;
     shooting: number;
     passing: number;
     defense: number;
@@ -39,5 +48,33 @@ describe('generated players dataset', () => {
     expect(
       outfieldPlayers.every((player) => !player.stats.goalkeeping || player.stats.goalkeeping === 0),
     ).toBe(true);
+  });
+
+  it('contains the newer secondary attributes used by the match engine', () => {
+    const datasetPath = path.join(process.cwd(), 'public', 'data', 'players.json');
+    const raw = fs.readFileSync(datasetPath, 'utf8');
+    const players = JSON.parse(raw) as GeneratedPlayer[];
+
+    const outfieldPlayer = players.find((player) => player.position !== 'GK');
+    const goalkeeper = players.find((player) => player.position === 'GK');
+
+    expect(outfieldPlayer?.stats.vision).toBeGreaterThan(0);
+    expect(outfieldPlayer?.stats.composure).toBeGreaterThan(0);
+    expect(outfieldPlayer?.stats.tackling).toBeGreaterThan(0);
+    expect(outfieldPlayer?.stats.positioning).toBeGreaterThan(0);
+    expect(outfieldPlayer?.stats.crossing).toBeGreaterThan(0);
+
+    expect(goalkeeper?.stats.shotStopping).toBeGreaterThan(0);
+    expect(goalkeeper?.stats.commandOfArea).toBeGreaterThan(0);
+  });
+
+  it('keeps the known age overrides applied in the generated dataset', () => {
+    const datasetPath = path.join(process.cwd(), 'public', 'data', 'players.json');
+    const raw = fs.readFileSync(datasetPath, 'utf8');
+    const players = JSON.parse(raw) as GeneratedPlayer[];
+
+    expect(players.find((player) => player.name === 'Yael Trepy')?.age).toBe(19);
+    expect(players.find((player) => player.name === 'Cheveyo Muy')?.age).toBe(19);
+    expect(players.find((player) => player.name === 'Andrés Antañón')?.age).toBe(19);
   });
 });
