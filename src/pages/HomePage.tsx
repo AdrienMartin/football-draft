@@ -358,14 +358,18 @@ export function HomePage() {
 
     const hideTimeoutId = window.setTimeout(() => {
       setShowDraftStarterBanner(false);
+    }, 5000);
+
+    const resetTimeoutId = window.setTimeout(() => {
       setShowDraftStarterResult(false);
       setShowDraftStarterOutcomeText(false);
-    }, 5000);
+    }, 5600);
 
     return () => {
       window.clearTimeout(revealTimeoutId);
       window.clearTimeout(outcomeTimeoutId);
       window.clearTimeout(hideTimeoutId);
+      window.clearTimeout(resetTimeoutId);
     };
   }, [currentStep, draftStarter]);
 
