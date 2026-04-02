@@ -16,6 +16,11 @@ import {
   type PlayerRole,
 } from "../lib/game/draft";
 import {
+  canUserPickDuringDraft,
+  getDraftStarterPresentation,
+  shouldAutoPickAiDraft,
+} from "../lib/game/draftStarter";
+import {
   filterAndSortDraftPlayers,
   type DraftSortOption,
 } from "../lib/game/draftFilters";
@@ -304,12 +309,14 @@ export function HomePage() {
 
   useEffect(() => {
     if (
-      mode === "multiplayer" ||
-      currentTurn !== "ai" ||
-      draftComplete ||
-      loading ||
-      error ||
-      showDraftStarterBanner
+      !shouldAutoPickAiDraft({
+        mode,
+        currentTurn,
+        draftComplete,
+        loading,
+        error,
+        showDraftStarterBanner,
+      })
     ) {
       return;
     }
@@ -440,19 +447,10 @@ export function HomePage() {
   }
 
   if (currentStep === "draft") {
-    const draftStarterMessage =
-      draftStarter === "user" ? "Tu commences" : "L adversaire commence";
-    const draftStarterLead = showDraftStarterOutcomeText
-      ? "Resultat"
-      : "Pile ou face";
-    const draftStarterHeadline = showDraftStarterOutcomeText
-      ? draftStarterMessage
-      : "Pile ou face...";
-    const draftStarterSubline = showDraftStarterOutcomeText
-      ? draftStarter === "user"
-        ? "Tu as le premier choix."
-        : "Le premier choix pour l adversaire."
-      : "On determine qui ouvre la draft.";
+    const draftStarterPresentation = getDraftStarterPresentation(
+      draftStarter ?? "user",
+      showDraftStarterOutcomeText,
+    );
 
     return (
       <section className="space-y-6">
@@ -484,19 +482,13 @@ export function HomePage() {
             <div className="flex items-center justify-between gap-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/75">
-                  {showDraftStarterOutcomeText ? "Resultat" : draftStarterLead}
+                  {draftStarterPresentation.lead}
                 </p>
                 <p className="mt-3 text-3xl font-semibold leading-tight text-white sm:text-4xl">
-                  {showDraftStarterOutcomeText
-                    ? draftStarterMessage
-                    : draftStarterHeadline}
+                  {draftStarterPresentation.headline}
                 </p>
                 <p className="mt-3 text-sm text-slate-200/80 sm:text-base">
-                  {showDraftStarterOutcomeText
-                    ? draftStarter === "user"
-                      ? "Tu as le premier choix."
-                      : "Le premier choix pour l adversaire."
-                    : draftStarterSubline}
+                  {draftStarterPresentation.subline}
                 </p>
               </div>
               <div
@@ -524,7 +516,7 @@ export function HomePage() {
                   >
                     <div className="absolute inset-[7px] rounded-full border border-amber-50/50" />
                     <div className="flex h-full items-center justify-center text-lg font-black tracking-[0.2em] text-slate-950 sm:text-xl">
-                      {showDraftStarterOutcomeText ? "TOI" : "?"}
+                      {draftStarterPresentation.userFace}
                     </div>
                   </div>
                   <div
@@ -536,7 +528,7 @@ export function HomePage() {
                   >
                     <div className="absolute inset-[7px] rounded-full border border-amber-50/50" />
                     <div className="flex h-full items-center justify-center text-lg font-black tracking-[0.2em] text-slate-950 sm:text-xl">
-                      {showDraftStarterOutcomeText ? "IA" : "?"}
+                      {draftStarterPresentation.aiFace}
                     </div>
                   </div>
                 </div>
@@ -606,11 +598,11 @@ export function HomePage() {
               requiredRoles={requiredRoles}
               maxTeamValue={rules.maxTeamValue}
               currentTeamValue={currentTeamValue}
-              canPick={
-                !draftComplete &&
-                currentTurn === "user" &&
-                !showDraftStarterBanner
-              }
+              canPick={canUserPickDuringDraft(
+                currentTurn,
+                draftComplete,
+                showDraftStarterBanner,
+              )}
               onPick={userPickPlayer}
             />
           </div>
