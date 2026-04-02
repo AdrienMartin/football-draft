@@ -13,6 +13,14 @@ export const MAX_PLAYERS_PER_ROLE: Record<PlayerRole, number> = {
 export type DraftTurn = 'user' | 'ai';
 export type PlayerRole = (typeof REQUIRED_ROLES)[number];
 
+export function pickDraftStarter(randomValue = Math.random()): DraftTurn {
+  return randomValue < 0.5 ? 'user' : 'ai';
+}
+
+export function getNextDraftTurn(currentTurn: DraftTurn): DraftTurn {
+  return currentTurn === 'user' ? 'ai' : 'user';
+}
+
 export function getPlayerRole(position: PlayerPosition): PlayerRole {
   if (position === 'GK') {
     return 'GK';

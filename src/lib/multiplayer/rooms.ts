@@ -175,11 +175,14 @@ async function fetchRoomRow(roomId: string) {
 }
 
 function buildInitialDraftState(players: Player[]): MultiplayerDraftState {
+  const starter: MultiplayerPlayerSlot = Math.random() < 0.5 ? 'host' : 'guest';
+
   return {
     availablePlayerIds: sortPlayersForDraft(players).map((player) => player.id),
     hostTeamIds: [],
     guestTeamIds: [],
-    currentTurn: 'host',
+    starter,
+    currentTurn: starter,
     lastPick: null,
     draftComplete: false,
   };
@@ -369,6 +372,7 @@ export async function makeMultiplayerPick(
     availablePlayerIds: draftState.availablePlayerIds.filter((id) => id !== playerId),
     hostTeamIds: nextHostTeamIds,
     guestTeamIds: nextGuestTeamIds,
+    starter: draftState.starter ?? draftState.currentTurn,
     currentTurn: slot === 'host' ? 'guest' : 'host',
     lastPick: {
       team: slot,

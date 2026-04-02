@@ -1,50 +1,55 @@
-import { useEffect, useMemo, useState } from 'react';
-import { DraftAvailablePlayers } from '../components/draft/DraftAvailablePlayers';
-import { DraftStatus } from '../components/draft/DraftStatus';
-import { DraftTeamPanel } from '../components/draft/DraftTeamPanel';
-import { LandingPage } from '../components/landing/LandingPage';
-import { MatchPreview } from '../components/match/MatchPreview';
-import { MatchResultCard } from '../components/match/MatchResultCard';
-import { MatchWaitingScreen } from '../components/match/MatchWaitingScreen';
-import { MultiplayerDisconnectedScreen } from '../components/multiplayer/MultiplayerDisconnectedScreen';
-import { MultiplayerSetup } from '../components/multiplayer/MultiplayerSetup';
-import { DraftRulesSetup } from '../components/rules/DraftRulesSetup';
+import { useEffect, useMemo, useState } from "react";
+import { DraftAvailablePlayers } from "../components/draft/DraftAvailablePlayers";
+import { DraftStatus } from "../components/draft/DraftStatus";
+import { DraftTeamPanel } from "../components/draft/DraftTeamPanel";
+import { LandingPage } from "../components/landing/LandingPage";
+import { MatchPreview } from "../components/match/MatchPreview";
+import { MatchResultCard } from "../components/match/MatchResultCard";
+import { MatchWaitingScreen } from "../components/match/MatchWaitingScreen";
+import { MultiplayerDisconnectedScreen } from "../components/multiplayer/MultiplayerDisconnectedScreen";
+import { MultiplayerSetup } from "../components/multiplayer/MultiplayerSetup";
+import { DraftRulesSetup } from "../components/rules/DraftRulesSetup";
 import {
   canDraftPlayer,
   getMissingRequiredRoles,
   getPlayerRole,
   type PlayerRole,
-} from '../lib/game/draft';
+} from "../lib/game/draft";
 import {
   filterAndSortDraftPlayers,
   type DraftSortOption,
-} from '../lib/game/draftFilters';
-import type { DraftRules } from '../lib/game/rules';
-import { subscribeToMultiplayerRoom } from '../lib/multiplayer/rooms';
-import { loadPlayers } from '../lib/players/loadPlayers';
-import { useGameStore } from '../store/useGameStore';
+} from "../lib/game/draftFilters";
+import type { DraftRules } from "../lib/game/rules";
+import { subscribeToMultiplayerRoom } from "../lib/multiplayer/rooms";
+import { loadPlayers } from "../lib/players/loadPlayers";
+import { useGameStore } from "../store/useGameStore";
 
 const PLAYERS_PER_PAGE = 5;
 
 export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<'ALL' | PlayerRole>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedNationality, setSelectedNationality] = useState('ALL');
-  const [selectedLeague, setSelectedLeague] = useState('ALL');
-  const [selectedClub, setSelectedClub] = useState('ALL');
-  const [minAge, setMinAge] = useState('');
-  const [maxAge, setMaxAge] = useState('');
-  const [minValue, setMinValue] = useState('');
-  const [maxValue, setMaxValue] = useState('');
-  const [sortOption, setSortOption] = useState<DraftSortOption>('rating-desc');
+  const [showDraftStarterBanner, setShowDraftStarterBanner] = useState(false);
+  const [showDraftStarterResult, setShowDraftStarterResult] = useState(false);
+  const [showDraftStarterOutcomeText, setShowDraftStarterOutcomeText] =
+    useState(false);
+  const [selectedRole, setSelectedRole] = useState<"ALL" | PlayerRole>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedNationality, setSelectedNationality] = useState("ALL");
+  const [selectedLeague, setSelectedLeague] = useState("ALL");
+  const [selectedClub, setSelectedClub] = useState("ALL");
+  const [minAge, setMinAge] = useState("");
+  const [maxAge, setMaxAge] = useState("");
+  const [minValue, setMinValue] = useState("");
+  const [maxValue, setMaxValue] = useState("");
+  const [sortOption, setSortOption] = useState<DraftSortOption>("rating-desc");
   const [currentPage, setCurrentPage] = useState(1);
 
   const mode = useGameStore((state) => state.mode);
   const availablePlayers = useGameStore((state) => state.availablePlayers);
   const userTeam = useGameStore((state) => state.userTeam);
   const aiTeam = useGameStore((state) => state.aiTeam);
+  const draftStarter = useGameStore((state) => state.draftStarter);
   const currentTurn = useGameStore((state) => state.currentTurn);
   const draftComplete = useGameStore((state) => state.draftComplete);
   const isPlayingMatch = useGameStore((state) => state.isPlayingMatch);
@@ -58,22 +63,38 @@ export function HomePage() {
   const multiplayerSetup = useGameStore((state) => state.multiplayerSetup);
   const loadInitialPlayers = useGameStore((state) => state.loadPlayers);
   const openRules = useGameStore((state) => state.openRules);
-  const openMultiplayerSetup = useGameStore((state) => state.openMultiplayerSetup);
+  const openMultiplayerSetup = useGameStore(
+    (state) => state.openMultiplayerSetup,
+  );
   const startQuickDraft = useGameStore((state) => state.startQuickDraft);
   const startDraft = useGameStore((state) => state.startDraft);
-  const updateMultiplayerHostName = useGameStore((state) => state.updateMultiplayerHostName);
-  const updateMultiplayerGuestName = useGameStore((state) => state.updateMultiplayerGuestName);
-  const createMultiplayerRoom = useGameStore((state) => state.createMultiplayerRoom);
-  const loadMultiplayerRoomFromLink = useGameStore((state) => state.loadMultiplayerRoomFromLink);
-  const joinCurrentMultiplayerRoom = useGameStore((state) => state.joinCurrentMultiplayerRoom);
+  const updateMultiplayerHostName = useGameStore(
+    (state) => state.updateMultiplayerHostName,
+  );
+  const updateMultiplayerGuestName = useGameStore(
+    (state) => state.updateMultiplayerGuestName,
+  );
+  const createMultiplayerRoom = useGameStore(
+    (state) => state.createMultiplayerRoom,
+  );
+  const loadMultiplayerRoomFromLink = useGameStore(
+    (state) => state.loadMultiplayerRoomFromLink,
+  );
+  const joinCurrentMultiplayerRoom = useGameStore(
+    (state) => state.joinCurrentMultiplayerRoom,
+  );
   const startCurrentMultiplayerDraft = useGameStore(
     (state) => state.startCurrentMultiplayerDraft,
   );
-  const syncMultiplayerRoom = useGameStore((state) => state.syncMultiplayerRoom);
+  const syncMultiplayerRoom = useGameStore(
+    (state) => state.syncMultiplayerRoom,
+  );
   const setMultiplayerConnectionIssue = useGameStore(
     (state) => state.setMultiplayerConnectionIssue,
   );
-  const sendMultiplayerHeartbeat = useGameStore((state) => state.sendMultiplayerHeartbeat);
+  const sendMultiplayerHeartbeat = useGameStore(
+    (state) => state.sendMultiplayerHeartbeat,
+  );
   const resetToLanding = useGameStore((state) => state.resetToLanding);
   const userPickPlayer = useGameStore((state) => state.userPickPlayer);
   const aiPickTurn = useGameStore((state) => state.aiPickTurn);
@@ -85,50 +106,58 @@ export function HomePage() {
   const resetDraft = useGameStore((state) => state.resetDraft);
 
   const roomIdFromUrl = useMemo(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return null;
     }
 
     const params = new URLSearchParams(window.location.search);
-    return params.get('roomId');
+    return params.get("roomId");
   }, []);
 
-  const opponentLabel = mode === 'multiplayer' ? 'Équipe adverse' : 'Équipe IA';
+  const opponentLabel = mode === "multiplayer" ? "Équipe adverse" : "Équipe IA";
   const requiredRoles = getMissingRequiredRoles(userTeam);
-  const currentTeamValue = userTeam.reduce((sum, player) => sum + player.value, 0);
+  const currentTeamValue = userTeam.reduce(
+    (sum, player) => sum + player.value,
+    0,
+  );
 
   const eligiblePlayers = availablePlayers.filter((player) =>
     canDraftPlayer(userTeam, player, rules.maxTeamValue),
   );
 
-  const availableRoleFilters: Array<'ALL' | PlayerRole> = [
-    'ALL',
-    ...(['GK', 'DEF', 'MID', 'FWD'] as PlayerRole[]).filter((role) =>
+  const availableRoleFilters: Array<"ALL" | PlayerRole> = [
+    "ALL",
+    ...(["GK", "DEF", "MID", "FWD"] as PlayerRole[]).filter((role) =>
       eligiblePlayers.some((player) => getPlayerRole(player.position) === role),
     ),
   ];
 
-  const nationalityOptions = [...new Set(eligiblePlayers.map((player) => player.nationality))].sort(
-    (a, b) => a.localeCompare(b),
-  );
-  const leagueOptions = [...new Set(eligiblePlayers.map((player) => player.league))].sort((a, b) =>
-    a.localeCompare(b),
-  );
+  const nationalityOptions = [
+    ...new Set(eligiblePlayers.map((player) => player.nationality)),
+  ].sort((a, b) => a.localeCompare(b));
+  const leagueOptions = [
+    ...new Set(eligiblePlayers.map((player) => player.league)),
+  ].sort((a, b) => a.localeCompare(b));
   const clubOptions = [
     ...new Set(
       eligiblePlayers
-        .filter((player) => selectedLeague === 'ALL' || player.league === selectedLeague)
+        .filter(
+          (player) =>
+            selectedLeague === "ALL" || player.league === selectedLeague,
+        )
         .map((player) => player.club),
     ),
   ].sort((a, b) => a.localeCompare(b));
 
   const roleFilteredPlayers =
-    selectedRole === 'ALL'
+    selectedRole === "ALL"
       ? eligiblePlayers
-      : eligiblePlayers.filter((player) => getPlayerRole(player.position) === selectedRole);
+      : eligiblePlayers.filter(
+          (player) => getPlayerRole(player.position) === selectedRole,
+        );
 
   const sortedPlayers = filterAndSortDraftPlayers(roleFilteredPlayers, {
-    selectedRole: 'ALL',
+    selectedRole: "ALL",
     searchQuery,
     selectedNationality,
     selectedLeague,
@@ -140,38 +169,47 @@ export function HomePage() {
     sortOption,
   });
 
-  const totalPages = Math.max(1, Math.ceil(sortedPlayers.length / PLAYERS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(sortedPlayers.length / PLAYERS_PER_PAGE),
+  );
   const paginatedPlayers = sortedPlayers.slice(
     (currentPage - 1) * PLAYERS_PER_PAGE,
     currentPage * PLAYERS_PER_PAGE,
   );
 
   useEffect(() => {
-    if (selectedRole !== 'ALL' && !availableRoleFilters.includes(selectedRole)) {
-      setSelectedRole('ALL');
+    if (
+      selectedRole !== "ALL" &&
+      !availableRoleFilters.includes(selectedRole)
+    ) {
+      setSelectedRole("ALL");
     }
   }, [availableRoleFilters, selectedRole]);
 
   useEffect(() => {
-    if (selectedNationality !== 'ALL' && !nationalityOptions.includes(selectedNationality)) {
-      setSelectedNationality('ALL');
+    if (
+      selectedNationality !== "ALL" &&
+      !nationalityOptions.includes(selectedNationality)
+    ) {
+      setSelectedNationality("ALL");
     }
   }, [nationalityOptions, selectedNationality]);
 
   useEffect(() => {
-    if (selectedLeague !== 'ALL' && !leagueOptions.includes(selectedLeague)) {
-      setSelectedLeague('ALL');
+    if (selectedLeague !== "ALL" && !leagueOptions.includes(selectedLeague)) {
+      setSelectedLeague("ALL");
     }
   }, [leagueOptions, selectedLeague]);
 
   useEffect(() => {
-    if (selectedLeague === 'ALL') {
-      setSelectedClub('ALL');
+    if (selectedLeague === "ALL") {
+      setSelectedClub("ALL");
       return;
     }
 
-    if (selectedClub !== 'ALL' && !clubOptions.includes(selectedClub)) {
-      setSelectedClub('ALL');
+    if (selectedClub !== "ALL" && !clubOptions.includes(selectedClub)) {
+      setSelectedClub("ALL");
     }
   }, [clubOptions, selectedClub, selectedLeague]);
 
@@ -198,16 +236,16 @@ export function HomePage() {
   }, [currentPage, totalPages]);
 
   const resetDraftFilters = () => {
-    setSelectedRole('ALL');
-    setSearchQuery('');
-    setSelectedNationality('ALL');
-    setSelectedLeague('ALL');
-    setSelectedClub('ALL');
-    setMinAge('');
-    setMaxAge('');
-    setMinValue('');
-    setMaxValue('');
-    setSortOption('rating-desc');
+    setSelectedRole("ALL");
+    setSearchQuery("");
+    setSelectedNationality("ALL");
+    setSelectedLeague("ALL");
+    setSelectedClub("ALL");
+    setMinAge("");
+    setMaxAge("");
+    setMinValue("");
+    setMaxValue("");
+    setSortOption("rating-desc");
     setCurrentPage(1);
   };
 
@@ -221,7 +259,7 @@ export function HomePage() {
           await loadMultiplayerRoomFromLink(roomIdFromUrl);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erreur inconnue');
+        setError(err instanceof Error ? err.message : "Erreur inconnue");
       } finally {
         setLoading(false);
       }
@@ -240,7 +278,11 @@ export function HomePage() {
       syncMultiplayerRoom,
       setMultiplayerConnectionIssue,
     );
-  }, [multiplayerSetup.roomId, setMultiplayerConnectionIssue, syncMultiplayerRoom]);
+  }, [
+    multiplayerSetup.roomId,
+    setMultiplayerConnectionIssue,
+    syncMultiplayerRoom,
+  ]);
 
   useEffect(() => {
     if (!multiplayerSetup.roomId || !multiplayerSetup.localSlot) {
@@ -254,10 +296,21 @@ export function HomePage() {
     }, 4000);
 
     return () => window.clearInterval(intervalId);
-  }, [multiplayerSetup.localSlot, multiplayerSetup.roomId, sendMultiplayerHeartbeat]);
+  }, [
+    multiplayerSetup.localSlot,
+    multiplayerSetup.roomId,
+    sendMultiplayerHeartbeat,
+  ]);
 
   useEffect(() => {
-    if (mode === 'multiplayer' || currentTurn !== 'ai' || draftComplete || loading || error) {
+    if (
+      mode === "multiplayer" ||
+      currentTurn !== "ai" ||
+      draftComplete ||
+      loading ||
+      error ||
+      showDraftStarterBanner
+    ) {
       return;
     }
 
@@ -266,7 +319,48 @@ export function HomePage() {
     }, 700);
 
     return () => window.clearTimeout(timeoutId);
-  }, [aiPickTurn, currentTurn, draftComplete, error, loading, mode]);
+  }, [
+    aiPickTurn,
+    currentTurn,
+    draftComplete,
+    error,
+    loading,
+    mode,
+    showDraftStarterBanner,
+  ]);
+
+  useEffect(() => {
+    if (currentStep !== "draft" || !draftStarter) {
+      setShowDraftStarterBanner(false);
+      setShowDraftStarterResult(false);
+      setShowDraftStarterOutcomeText(false);
+      return;
+    }
+
+    setShowDraftStarterBanner(true);
+    setShowDraftStarterResult(false);
+    setShowDraftStarterOutcomeText(false);
+
+    const revealTimeoutId = window.setTimeout(() => {
+      setShowDraftStarterResult(true);
+    }, 1350);
+
+    const outcomeTimeoutId = window.setTimeout(() => {
+      setShowDraftStarterOutcomeText(true);
+    }, 3100);
+
+    const hideTimeoutId = window.setTimeout(() => {
+      setShowDraftStarterBanner(false);
+      setShowDraftStarterResult(false);
+      setShowDraftStarterOutcomeText(false);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(revealTimeoutId);
+      window.clearTimeout(outcomeTimeoutId);
+      window.clearTimeout(hideTimeoutId);
+    };
+  }, [currentStep, draftStarter]);
 
   if (loading) {
     return (
@@ -285,21 +379,30 @@ export function HomePage() {
   }
 
   if (
-    mode === 'multiplayer' &&
+    mode === "multiplayer" &&
     multiplayerSetup.opponentDisconnected &&
-    currentStep !== 'result'
+    currentStep !== "result"
   ) {
     const disconnectPhase =
-      currentStep === 'draft' ? 'draft' : currentStep === 'match' ? 'match' : 'room';
+      currentStep === "draft"
+        ? "draft"
+        : currentStep === "match"
+          ? "match"
+          : "room";
 
-    return <MultiplayerDisconnectedScreen onBack={resetToLanding} phase={disconnectPhase} />;
+    return (
+      <MultiplayerDisconnectedScreen
+        onBack={resetToLanding}
+        phase={disconnectPhase}
+      />
+    );
   }
 
-  if (mode === 'multiplayer' && isPlayingMatch) {
+  if (mode === "multiplayer" && isPlayingMatch) {
     return <MatchWaitingScreen />;
   }
 
-  if (currentStep === 'landing') {
+  if (currentStep === "landing") {
     return (
       <LandingPage
         onOpenRules={openRules}
@@ -310,7 +413,7 @@ export function HomePage() {
     );
   }
 
-  if (currentStep === 'multiplayer') {
+  if (currentStep === "multiplayer") {
     return (
       <MultiplayerSetup
         players={initialPlayers}
@@ -325,7 +428,7 @@ export function HomePage() {
     );
   }
 
-  if (currentStep === 'rules') {
+  if (currentStep === "rules") {
     return (
       <DraftRulesSetup
         players={initialPlayers}
@@ -336,111 +439,226 @@ export function HomePage() {
     );
   }
 
-  if (currentStep === 'draft') {
+  if (currentStep === "draft") {
+    const draftStarterMessage =
+      draftStarter === "user" ? "Tu commences" : "L adversaire commence";
+    const draftStarterLead = showDraftStarterOutcomeText
+      ? "Resultat"
+      : "Pile ou face";
+    const draftStarterHeadline = showDraftStarterOutcomeText
+      ? draftStarterMessage
+      : "Pile ou face...";
+    const draftStarterSubline = showDraftStarterOutcomeText
+      ? draftStarter === "user"
+        ? "Tu as le premier choix."
+        : "Le premier choix pour l adversaire."
+      : "On determine qui ouvre la draft.";
+
     return (
-      <section className="grid gap-6 lg:grid-cols-[1.45fr_0.85fr]">
-        <div className="space-y-6">
-          <DraftStatus
-            currentTurn={currentTurn}
-            isComplete={draftComplete}
-            lastPick={lastPick}
-            title={mode === 'multiplayer' ? 'Draft 1v1' : 'Draft joueur contre IA'}
-            description={
-              mode === 'multiplayer'
-                ? 'Chacun choisit 5 joueurs à tour de rôle jusqu à compléter son équipe.'
-                : 'Choisis 5 joueurs à tour de rôle face à l IA pour composer ton équipe.'
-            }
+      <section className="space-y-6">
+        <div
+          className={[
+            "fixed inset-0 z-40 flex items-center justify-center px-4 transition-all duration-300",
+            showDraftStarterBanner
+              ? "pointer-events-auto opacity-100"
+              : "pointer-events-none opacity-0",
+          ].join(" ")}
+          aria-hidden={!showDraftStarterBanner}
+        >
+          <div
+            className={[
+              "absolute inset-0 transition-all duration-300",
+              showDraftStarterBanner
+                ? "bg-slate-950/45 backdrop-blur-md"
+                : "bg-transparent backdrop-blur-none",
+            ].join(" ")}
           />
-
-          {draftMessage && (
-            <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
-              {draftMessage}
+          <div
+            className={[
+              "relative w-full max-w-2xl rounded-[32px] border border-cyan-200/30 bg-slate-950/92 px-8 py-8 shadow-[0_32px_120px_rgba(2,132,199,0.3)] backdrop-blur-xl transition-all duration-500 sm:px-10 sm:py-10",
+              showDraftStarterBanner
+                ? "translate-y-0 scale-100"
+                : "-translate-y-6 scale-95",
+            ].join(" ")}
+          >
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/75">
+                  {showDraftStarterOutcomeText ? "Resultat" : draftStarterLead}
+                </p>
+                <p className="mt-3 text-3xl font-semibold leading-tight text-white sm:text-4xl">
+                  {showDraftStarterOutcomeText
+                    ? draftStarterMessage
+                    : draftStarterHeadline}
+                </p>
+                <p className="mt-3 text-sm text-slate-200/80 sm:text-base">
+                  {showDraftStarterOutcomeText
+                    ? draftStarter === "user"
+                      ? "Tu as le premier choix."
+                      : "Le premier choix pour l adversaire."
+                    : draftStarterSubline}
+                </p>
+              </div>
+              <div
+                className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28"
+                style={{ perspective: "1200px" }}
+              >
+                <div className="absolute inset-0 rounded-full bg-cyan-300/10 blur-xl" />
+                <div className="absolute inset-0 animate-[ping_1.4s_ease-out_infinite] rounded-full bg-cyan-300/20" />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    transformStyle: "preserve-3d",
+                    transition:
+                      "transform 1650ms cubic-bezier(0.16, 1, 0.3, 1)",
+                    transform: showDraftStarterResult
+                      ? draftStarter === "user"
+                        ? "rotateY(0deg) rotateX(0deg)"
+                        : "rotateY(180deg) rotateX(0deg)"
+                      : "rotateY(1440deg) rotateX(18deg)",
+                  }}
+                >
+                  <div
+                    className="absolute inset-0 rounded-full border border-cyan-200/45 bg-gradient-to-br from-amber-100 via-yellow-300 to-amber-500 shadow-[inset_0_2px_12px_rgba(255,255,255,0.35),0_0_30px_rgba(34,211,238,0.18)]"
+                    style={{ backfaceVisibility: "hidden" }}
+                  >
+                    <div className="absolute inset-[7px] rounded-full border border-amber-50/50" />
+                    <div className="flex h-full items-center justify-center text-lg font-black tracking-[0.2em] text-slate-950 sm:text-xl">
+                      {showDraftStarterOutcomeText ? "TOI" : "?"}
+                    </div>
+                  </div>
+                  <div
+                    className="absolute inset-0 rounded-full border border-cyan-200/45 bg-gradient-to-br from-amber-100 via-yellow-300 to-amber-500 shadow-[inset_0_2px_12px_rgba(255,255,255,0.35),0_0_30px_rgba(34,211,238,0.18)]"
+                    style={{
+                      backfaceVisibility: "hidden",
+                      transform: "rotateY(180deg)",
+                    }}
+                  >
+                    <div className="absolute inset-[7px] rounded-full border border-amber-50/50" />
+                    <div className="flex h-full items-center justify-center text-lg font-black tracking-[0.2em] text-slate-950 sm:text-xl">
+                      {showDraftStarterOutcomeText ? "IA" : "?"}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-
-          <DraftAvailablePlayers
-            filteredPlayers={paginatedPlayers}
-            totalFilteredPlayers={sortedPlayers.length}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPreviousPage={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            onNextPage={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-            availableRoleFilters={availableRoleFilters}
-            selectedRole={selectedRole}
-            onSelectRole={setSelectedRole}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            nationalityOptions={nationalityOptions}
-            selectedNationality={selectedNationality}
-            onSelectNationality={setSelectedNationality}
-            leagueOptions={leagueOptions}
-            selectedLeague={selectedLeague}
-            onSelectLeague={setSelectedLeague}
-            clubOptions={clubOptions}
-            selectedClub={selectedClub}
-            onSelectClub={setSelectedClub}
-            minAge={minAge}
-            maxAge={maxAge}
-            onMinAgeChange={setMinAge}
-            onMaxAgeChange={setMaxAge}
-            minValue={minValue}
-            maxValue={maxValue}
-            onMinValueChange={setMinValue}
-            onMaxValueChange={setMaxValue}
-            onResetFilters={resetDraftFilters}
-            sortOption={sortOption}
-            onSelectSort={setSortOption}
-            requiredRoles={requiredRoles}
-            maxTeamValue={rules.maxTeamValue}
-            currentTeamValue={currentTeamValue}
-            canPick={!draftComplete && currentTurn === 'user'}
-            onPick={userPickPlayer}
-          />
+          </div>
         </div>
 
-        <aside className="space-y-6">
-          <DraftTeamPanel
-            title="Ton équipe"
-            players={userTeam}
-            accentClassName="bg-emerald-400/15 text-emerald-200"
-          />
+        <div className="grid gap-6 lg:grid-cols-[1.45fr_0.85fr]">
+          <div className="space-y-6">
+            <DraftStatus
+              currentTurn={currentTurn}
+              isComplete={draftComplete}
+              lastPick={lastPick}
+              title={
+                mode === "multiplayer" ? "Draft 1v1" : "Draft joueur contre IA"
+              }
+              description={
+                mode === "multiplayer"
+                  ? "Chacun choisit 5 joueurs à tour de rôle jusqu à compléter son équipe."
+                  : "Choisis 5 joueurs à tour de rôle face à l IA pour composer ton équipe."
+              }
+            />
 
-          <DraftTeamPanel
-            title={opponentLabel}
-            players={aiTeam}
-            accentClassName="bg-sky-400/15 text-sky-100"
-          />
-        </aside>
+            {draftMessage && (
+              <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-sm text-amber-100">
+                {draftMessage}
+              </div>
+            )}
+
+            <DraftAvailablePlayers
+              filteredPlayers={paginatedPlayers}
+              totalFilteredPlayers={sortedPlayers.length}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPreviousPage={() =>
+                setCurrentPage((page) => Math.max(1, page - 1))
+              }
+              onNextPage={() =>
+                setCurrentPage((page) => Math.min(totalPages, page + 1))
+              }
+              availableRoleFilters={availableRoleFilters}
+              selectedRole={selectedRole}
+              onSelectRole={setSelectedRole}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              nationalityOptions={nationalityOptions}
+              selectedNationality={selectedNationality}
+              onSelectNationality={setSelectedNationality}
+              leagueOptions={leagueOptions}
+              selectedLeague={selectedLeague}
+              onSelectLeague={setSelectedLeague}
+              clubOptions={clubOptions}
+              selectedClub={selectedClub}
+              onSelectClub={setSelectedClub}
+              minAge={minAge}
+              maxAge={maxAge}
+              onMinAgeChange={setMinAge}
+              onMaxAgeChange={setMaxAge}
+              minValue={minValue}
+              maxValue={maxValue}
+              onMinValueChange={setMinValue}
+              onMaxValueChange={setMaxValue}
+              onResetFilters={resetDraftFilters}
+              sortOption={sortOption}
+              onSelectSort={setSortOption}
+              requiredRoles={requiredRoles}
+              maxTeamValue={rules.maxTeamValue}
+              currentTeamValue={currentTeamValue}
+              canPick={
+                !draftComplete &&
+                currentTurn === "user" &&
+                !showDraftStarterBanner
+              }
+              onPick={userPickPlayer}
+            />
+          </div>
+
+          <aside className="space-y-6">
+            <DraftTeamPanel
+              title="Ton équipe"
+              players={userTeam}
+              accentClassName="bg-emerald-400/15 text-emerald-200"
+            />
+
+            <DraftTeamPanel
+              title={opponentLabel}
+              players={aiTeam}
+              accentClassName="bg-sky-400/15 text-sky-100"
+            />
+          </aside>
+        </div>
       </section>
     );
   }
 
   return (
     <section className="space-y-6">
-      {currentStep === 'match' && (
+      {currentStep === "match" && (
         <MatchPreview
           userTeam={userTeam}
           aiTeam={aiTeam}
-          isMultiplayer={mode === 'multiplayer'}
+          isMultiplayer={mode === "multiplayer"}
           opponentLabel={opponentLabel}
           onPlay={playMatch}
         />
       )}
 
-      {currentStep === 'result' && matchResult && (
+      {currentStep === "result" && matchResult && (
         <MatchResultCard
           result={matchResult}
           userTeam={userTeam}
           aiTeam={aiTeam}
           opponentLabel={opponentLabel}
           startedAt={matchStartedAt}
-          showReplayActions={mode !== 'multiplayer'}
-          showOnlineRematchAction={mode === 'multiplayer'}
+          showReplayActions={mode !== "multiplayer"}
+          showOnlineRematchAction={mode === "multiplayer"}
           onlineRematchRequested={
-            mode === 'multiplayer' &&
+            mode === "multiplayer" &&
             Boolean(
               multiplayerSetup.localSlot &&
-                multiplayerSetup.room?.rematchReady?.[multiplayerSetup.localSlot],
+              multiplayerSetup.room?.rematchReady?.[multiplayerSetup.localSlot],
             )
           }
           onRequestRematch={requestCurrentMultiplayerRematch}

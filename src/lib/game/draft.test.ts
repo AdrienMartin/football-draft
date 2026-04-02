@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Player, PlayerPosition, PlayerStats } from '../../types/player';
-import { getAiPick } from './draft';
+import { getAiPick, getNextDraftTurn, pickDraftStarter } from './draft';
 
 function createPlayer(
   id: number,
@@ -60,6 +60,16 @@ const strikerStats: PlayerStats = {
 };
 
 describe('getAiPick', () => {
+  it('picks the draft starter from the coin flip result', () => {
+    expect(pickDraftStarter(0.2)).toBe('user');
+    expect(pickDraftStarter(0.8)).toBe('ai');
+  });
+
+  it('alternates the draft turn after each pick', () => {
+    expect(getNextDraftTurn('user')).toBe('ai');
+    expect(getNextDraftTurn('ai')).toBe('user');
+  });
+
   it('avoids taking a goalkeeper too early when stronger outfield stars are available without budget', () => {
     const team: Player[] = [];
     const players: Player[] = [

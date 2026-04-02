@@ -2,8 +2,10 @@ import { create } from 'zustand';
 import type { AppStep } from '../lib/game/constants';
 import {
   canDraftPlayer,
+  getNextDraftTurn,
   getAiPick,
   isDraftComplete,
+  pickDraftStarter,
   sortPlayersForDraft,
   type DraftTurn,
 } from '../lib/game/draft';
@@ -47,6 +49,7 @@ type GameState = {
   aiTeam: Player[];
   rules: DraftRules;
   multiplayerSetup: MultiplayerSetupState;
+  draftStarter: DraftTurn | null;
   currentTurn: DraftTurn;
   draftComplete: boolean;
   isPlayingMatch: boolean;
@@ -81,6 +84,8 @@ type GameState = {
 };
 
 function buildDraftState(players: Player[], rules: DraftRules) {
+  const draftStarter = pickDraftStarter();
+
   return {
     currentStep: 'draft' as AppStep,
     draftPool: players,
@@ -88,7 +93,8 @@ function buildDraftState(players: Player[], rules: DraftRules) {
     userTeam: [],
     aiTeam: [],
     rules,
-    currentTurn: 'user' as DraftTurn,
+    draftStarter,
+    currentTurn: draftStarter,
     draftComplete: false,
     isPlayingMatch: false,
     matchStartedAt: null,
@@ -108,6 +114,7 @@ function buildLandingState(players: Player[]) {
     aiTeam: [],
     rules: DEFAULT_DRAFT_RULES,
     multiplayerSetup: DEFAULT_MULTIPLAYER_SETUP,
+    draftStarter: null,
     currentTurn: 'user' as DraftTurn,
     draftComplete: false,
     isPlayingMatch: false,
@@ -143,6 +150,7 @@ function hydrateMultiplayerRoom(room: MultiplayerRoom, state: GameState) {
       availablePlayers: state.availablePlayers,
       userTeam: state.userTeam,
       aiTeam: state.aiTeam,
+      draftStarter: state.draftStarter,
       currentTurn: state.currentTurn,
       draftComplete: state.draftComplete,
       lastPick: state.lastPick,
@@ -168,6 +176,8 @@ function hydrateMultiplayerRoom(room: MultiplayerRoom, state: GameState) {
     .map((id) => playerMap.get(id))
     .filter((player): player is Player => Boolean(player));
   const currentTurn: DraftTurn = room.draftState.currentTurn === localSlot ? 'user' : 'ai';
+  const starterSlot = room.draftState.starter ?? room.draftState.currentTurn;
+  const draftStarter: DraftTurn = starterSlot === localSlot ? 'user' : 'ai';
   const lastPickedPlayer = room.draftState.lastPick
     ? playerMap.get(room.draftState.lastPick.playerId) ?? null
     : null;
@@ -189,6 +199,7 @@ function hydrateMultiplayerRoom(room: MultiplayerRoom, state: GameState) {
     availablePlayers,
     userTeam,
     aiTeam,
+    draftStarter,
     currentTurn,
     draftComplete: room.draftState.draftComplete,
     lastPick:
@@ -215,6 +226,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   aiTeam: [],
   rules: DEFAULT_DRAFT_RULES,
   multiplayerSetup: DEFAULT_MULTIPLAYER_SETUP,
+  draftStarter: null,
   currentTurn: 'user',
   draftComplete: false,
   isPlayingMatch: false,
@@ -631,7 +643,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       availablePlayers,
       userTeam,
-      currentTurn: draftDone ? 'user' : 'ai',
+      currentTurn: draftDone ? state.currentTurn : getNextDraftTurn(state.currentTurn),
       draftComplete: draftDone,
       currentStep: draftDone ? 'match' : 'draft',
       lastPick: {
@@ -669,7 +681,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       availablePlayers,
       aiTeam,
-      currentTurn: 'user',
+      currentTurn: draftDone ? state.currentTurn : getNextDraftTurn(state.currentTurn),
       draftComplete: draftDone,
       currentStep: draftDone ? 'match' : 'draft',
       lastPick: {

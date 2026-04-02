@@ -16,6 +16,7 @@ export type MultiplayerDraftState = {
   availablePlayerIds: number[];
   hostTeamIds: number[];
   guestTeamIds: number[];
+  starter?: MultiplayerPlayerSlot;
   currentTurn: MultiplayerDraftTurn;
   lastPick: MultiplayerDraftPick | null;
   draftComplete: boolean;
