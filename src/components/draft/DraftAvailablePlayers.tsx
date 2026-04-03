@@ -1,6 +1,10 @@
 import type { PlayerRole } from '../../lib/game/draft';
 import { getClubBadgeUrl, getLeagueBadgeUrl } from '../../lib/assets/badges';
-import { formatLeagueLabel, formatPlayerCount } from '../../lib/players/formatters';
+import {
+  formatLeagueLabel,
+  formatPlayerCount,
+  getNationalityLabel,
+} from '../../lib/players/formatters';
 import type { Player } from '../../types/player';
 import { PlayerCard } from '../players/PlayerCard';
 
@@ -19,9 +23,11 @@ type DraftAvailablePlayersProps = {
   nationalityOptions: string[];
   selectedNationality: string;
   onSelectNationality: (value: string) => void;
+  isNationalityLocked: boolean;
   leagueOptions: string[];
   selectedLeague: string;
   onSelectLeague: (value: string) => void;
+  isLeagueLocked: boolean;
   clubOptions: string[];
   selectedClub: string;
   onSelectClub: (value: string) => void;
@@ -60,9 +66,11 @@ export function DraftAvailablePlayers({
   nationalityOptions,
   selectedNationality,
   onSelectNationality,
+  isNationalityLocked,
   leagueOptions,
   selectedLeague,
   onSelectLeague,
+  isLeagueLocked,
   clubOptions,
   selectedClub,
   onSelectClub,
@@ -160,12 +168,13 @@ export function DraftAvailablePlayers({
               <select
                 value={selectedNationality}
                 onChange={(event) => onSelectNationality(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+                disabled={isNationalityLocked}
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="ALL">Toutes</option>
                 {nationalityOptions.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {getNationalityLabel(option)}
                   </option>
                 ))}
               </select>
@@ -188,7 +197,8 @@ export function DraftAvailablePlayers({
             <select
               value={selectedLeague}
               onChange={(event) => onSelectLeague(event.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+              disabled={isLeagueLocked}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
             >
               <option value="ALL">Tous</option>
               {leagueOptions.map((option) => (

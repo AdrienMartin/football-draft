@@ -126,6 +126,8 @@ export function HomePage() {
     (sum, player) => sum + player.value,
     0,
   );
+  const lockedNationality = rules.nationality !== null;
+  const lockedLeague = rules.league !== null;
 
   const eligiblePlayers = availablePlayers.filter((player) =>
     canDraftPlayer(userTeam, player, rules.maxTeamValue),
@@ -194,19 +196,29 @@ export function HomePage() {
   }, [availableRoleFilters, selectedRole]);
 
   useEffect(() => {
+    if (rules.nationality) {
+      setSelectedNationality(rules.nationality);
+      return;
+    }
+
     if (
       selectedNationality !== "ALL" &&
       !nationalityOptions.includes(selectedNationality)
     ) {
       setSelectedNationality("ALL");
     }
-  }, [nationalityOptions, selectedNationality]);
+  }, [nationalityOptions, rules.nationality, selectedNationality]);
 
   useEffect(() => {
+    if (rules.league) {
+      setSelectedLeague(rules.league);
+      return;
+    }
+
     if (selectedLeague !== "ALL" && !leagueOptions.includes(selectedLeague)) {
       setSelectedLeague("ALL");
     }
-  }, [leagueOptions, selectedLeague]);
+  }, [leagueOptions, rules.league, selectedLeague]);
 
   useEffect(() => {
     if (selectedLeague === "ALL") {
@@ -244,8 +256,8 @@ export function HomePage() {
   const resetDraftFilters = () => {
     setSelectedRole("ALL");
     setSearchQuery("");
-    setSelectedNationality("ALL");
-    setSelectedLeague("ALL");
+    setSelectedNationality(rules.nationality ?? "ALL");
+    setSelectedLeague(rules.league ?? "ALL");
     setSelectedClub("ALL");
     setMinAge("");
     setMaxAge("");
@@ -584,9 +596,11 @@ export function HomePage() {
               nationalityOptions={nationalityOptions}
               selectedNationality={selectedNationality}
               onSelectNationality={setSelectedNationality}
+              isNationalityLocked={lockedNationality}
               leagueOptions={leagueOptions}
               selectedLeague={selectedLeague}
               onSelectLeague={setSelectedLeague}
+              isLeagueLocked={lockedLeague}
               clubOptions={clubOptions}
               selectedClub={selectedClub}
               onSelectClub={setSelectedClub}

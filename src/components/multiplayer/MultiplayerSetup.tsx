@@ -1,7 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { applyDraftRules, type DraftRules } from '../../lib/game/rules';
 import { isPlayerConnectionStale } from '../../lib/multiplayer/rooms';
-import { formatLeagueLabel, formatPlayerCount } from '../../lib/players/formatters';
+import {
+  formatLeagueLabel,
+  formatPlayerCount,
+  getNationalityLabel,
+} from '../../lib/players/formatters';
 import type { MultiplayerSetupState } from '../../lib/multiplayer/types';
 import { isSupabaseConfigured } from '../../lib/supabase/client';
 import type { Player } from '../../types/player';
@@ -403,7 +407,7 @@ export function MultiplayerSetup({
               <option value="ALL">Toutes</option>
               {nationalityOptions.map((nationality) => (
                 <option key={nationality} value={nationality}>
-                  {nationality}
+                  {getNationalityLabel(nationality)}
                 </option>
               ))}
             </select>
