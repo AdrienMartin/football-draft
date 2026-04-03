@@ -9,6 +9,7 @@ import { MatchWaitingScreen } from "../components/match/MatchWaitingScreen";
 import { MultiplayerDisconnectedScreen } from "../components/multiplayer/MultiplayerDisconnectedScreen";
 import { MultiplayerSetup } from "../components/multiplayer/MultiplayerSetup";
 import { DraftRulesSetup } from "../components/rules/DraftRulesSetup";
+import { loadBadges } from "../lib/assets/badges";
 import {
   canDraftPlayer,
   getMissingRequiredRoles,
@@ -257,6 +258,7 @@ export function HomePage() {
   useEffect(() => {
     async function initializePage() {
       try {
+        await loadBadges();
         const data = await loadPlayers();
         loadInitialPlayers(data);
 

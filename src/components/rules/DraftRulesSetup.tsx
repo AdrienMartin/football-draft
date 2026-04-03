@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { applyDraftRules, type DraftRules } from '../../lib/game/rules';
-import { formatPlayerCount } from '../../lib/players/formatters';
+import { formatLeagueLabel, formatPlayerCount } from '../../lib/players/formatters';
 import type { Player } from '../../types/player';
 
 type DraftRulesSetupProps = {
@@ -66,7 +66,7 @@ export function DraftRulesSetup({
             <option value="ALL">Tous</option>
             {leagueOptions.map((league) => (
               <option key={league} value={league}>
-                {league}
+                {formatLeagueLabel(league)}
               </option>
             ))}
           </select>

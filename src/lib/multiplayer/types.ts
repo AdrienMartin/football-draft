@@ -25,7 +25,18 @@ export type MultiplayerDraftState = {
 export type MultiplayerMatchEvent = {
   minute: number;
   team: MultiplayerPlayerSlot;
-  type: 'goal' | 'chance' | 'save' | 'pressure' | 'shot' | 'counter' | 'cross' | 'block';
+  type:
+    | 'goal'
+    | 'chance'
+    | 'save'
+    | 'pressure'
+    | 'shot'
+    | 'counter'
+    | 'cross'
+    | 'block'
+    | 'error'
+    | 'aerial'
+    | 'rebound';
   scorer?: string;
   assister?: string;
   xg?: number;

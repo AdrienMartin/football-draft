@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": ".",
+    "outDir": "tmp/calibration-dist",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmit": false
+  },
+  "include": ["scripts/calibrate-match-engine.ts", "src/lib/game/**/*.ts", "src/types/player.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

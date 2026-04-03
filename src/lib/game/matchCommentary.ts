@@ -22,7 +22,10 @@ type CommentaryEvent = {
     | 'shot'
     | 'counter'
     | 'cross'
-    | 'block';
+    | 'block'
+    | 'error'
+    | 'aerial'
+    | 'rebound';
   text?: string;
 };
 
@@ -77,6 +80,9 @@ export function buildHighlights(
   const saves = events.filter((event) => event.type === 'save').length;
   const counters = events.filter((event) => event.type === 'counter').length;
   const crosses = events.filter((event) => event.type === 'cross').length;
+  const defensiveErrors = events.filter((event) => event.type === 'error').length;
+  const rebounds = events.filter((event) => event.type === 'rebound').length;
+  const aerials = events.filter((event) => event.type === 'aerial').length;
 
   if (userSummary.midfield > aiSummary.midfield + 4) {
     highlights.push("Ton equipe a souvent eu la main dans l'entrejeu.");
@@ -96,6 +102,12 @@ export function buildHighlights(
     highlights.push('Le match a souvent bascule sur des transitions rapides.');
   } else if (crosses >= 3) {
     highlights.push('Les couloirs ont beaucoup compte dans la construction des occasions.');
+  } else if (aerials >= 3) {
+    highlights.push('Plusieurs situations se sont decidees dans les duels aeriens.');
+  } else if (rebounds >= 2) {
+    highlights.push('Les seconds ballons ont amene plusieurs sequences de danger.');
+  } else if (defensiveErrors >= 2) {
+    highlights.push('Quelques erreurs defensives ont ouvert des opportunites inhabituelles.');
   } else if (saves >= 3) {
     highlights.push('Les gardiens ont repousse plusieurs situations importantes.');
   }
@@ -292,6 +304,72 @@ export function buildCrossText(
         `${teamName} passe par l'aile pour amener du danger devant le but.`,
         `${teamName} trouve un decalage sur le couloir et cherche la surface.`,
         `${teamName} etire bien le bloc adverse et amene un ballon dangereux devant le but.`,
+      ];
+
+  return pickVariant(options, recentEvents);
+}
+
+export function buildErrorText(
+  team: CommentaryTeam,
+  recentEvents?: CommentaryEvent[],
+  instigator?: string,
+) {
+  const teamName = getTeamName(team);
+
+  const options = instigator
+    ? [
+        `${instigator} profite d'une mauvaise relance et accelere aussitot.`,
+        `${instigator} sent bien l'erreur defensive et s'engouffre dans l'espace.`,
+        `${instigator} recupere un ballon mal negocie et peut se projeter.`,
+      ]
+    : [
+        `${teamName} profite d'une grosse approximation defensive.`,
+        `${teamName} recupere un ballon donne pres de la zone dangereuse.`,
+        `${teamName} beneficie d'une relance ratee et se remet a attaquer.`,
+      ];
+
+  return pickVariant(options, recentEvents);
+}
+
+export function buildAerialText(
+  team: CommentaryTeam,
+  recentEvents?: CommentaryEvent[],
+  target?: string,
+) {
+  const teamName = getTeamName(team);
+
+  const options = target
+    ? [
+        `${target} attaque bien le ballon dans les airs.`,
+        `${target} se presente au duel aerien dans la surface.`,
+        `${target} vient disputer ce ballon haut au coeur de la surface.`,
+      ]
+    : [
+        `${teamName} cherche la solution dans les airs au coeur de la surface.`,
+        `${teamName} mise sur un duel aerien pour faire la difference.`,
+        `${teamName} amene un ballon haut dans une zone tres dangereuse.`,
+      ];
+
+  return pickVariant(options, recentEvents);
+}
+
+export function buildReboundText(
+  team: CommentaryTeam,
+  recentEvents?: CommentaryEvent[],
+  scorer?: string,
+) {
+  const teamName = getTeamName(team);
+
+  const options = scorer
+    ? [
+        `${scorer} suit bien et se jette sur le second ballon.`,
+        `${scorer} est le premier sur le ballon relache.`,
+        `${scorer} anticipe parfaitement le rebond dans la surface.`,
+      ]
+    : [
+        `${teamName} reste vivant sur le second ballon.`,
+        `${teamName} recupere le ballon relache dans une zone chaude.`,
+        `${teamName} est le plus prompt apres ce ballon qui traine.`,
       ];
 
   return pickVariant(options, recentEvents);

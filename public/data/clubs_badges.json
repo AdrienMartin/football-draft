@@ -1,0 +1,590 @@
+[
+  {
+    "club": "Milan",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/milan.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/wvspur1448806617.png"
+  },
+  {
+    "club": "Bayern Munich",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/bayern-munich.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/01ogkh1716960412.png"
+  },
+  {
+    "club": "Barcelona",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/barcelona.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/wq9sir1639406443.png"
+  },
+  {
+    "club": "Real Madrid",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/real-madrid.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/vwvwrw1473502969.png"
+  },
+  {
+    "club": "Roma",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/roma.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png"
+  },
+  {
+    "club": "Everton",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/everton.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/eqayrf1523184794.png"
+  },
+  {
+    "club": "Dortmund",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/dortmund.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/tqo8ge1716960353.png"
+  },
+  {
+    "club": "Crystal Palace",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/crystal-palace.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/ia6i3m1656014992.png"
+  },
+  {
+    "club": "Atlético Madrid",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/atletico-madrid.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/0ulh3q1719984315.png"
+  },
+  {
+    "club": "Aston Villa",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/aston-villa.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/jykrpv1717309891.png"
+  },
+  {
+    "club": "Manchester City",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/manchester-city.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/vwpvry1467462651.png"
+  },
+  {
+    "club": "Arsenal",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/arsenal.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/uyhbfe1612467038.png"
+  },
+  {
+    "club": "Chelsea",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/chelsea.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/yvwvtu1448813215.png"
+  },
+  {
+    "club": "Le Havre",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/le-havre.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/aikowk1546475003.png"
+  },
+  {
+    "club": "Sunderland",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/sunderland.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/tprtus1448813498.png"
+  },
+  {
+    "club": "Strasbourg",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/strasbourg.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/b8k77w1766625501.png"
+  },
+  {
+    "club": "Cagliari",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/cagliari.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/wvsvxt1447534471.png"
+  },
+  {
+    "club": "Fiorentina",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/fiorentina.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/hc8nhu1656098030.png"
+  },
+  {
+    "club": "Atalanta",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/atalanta.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/lrvxg71534873930.png"
+  },
+  {
+    "club": "Lens",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/lens.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/3pxoum1598797195.png"
+  },
+  {
+    "club": "Stuttgart",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/stuttgart.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/yppyux1473454085.png"
+  },
+  {
+    "club": "Liverpool",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/liverpool.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/kfaher1737969724.png"
+  },
+  {
+    "club": "Tottenham Hotspur",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/tottenham-hotspur.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/dfyfhl1604094109.png"
+  },
+  {
+    "club": "Fulham",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/fulham.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/xwwvyt1448811086.png"
+  },
+  {
+    "club": "Genoa",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/genoa.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/52s8dn1655553600.png"
+  },
+  {
+    "club": "Newcastle United",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/newcastle-united.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/lhwuiz1621593302.png"
+  },
+  {
+    "club": "Nottingham Forest",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/nottingham-forest.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/bk4qjs1546440351.png"
+  },
+  {
+    "club": "Villarreal",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/villarreal.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/vrypqy1473503073.png"
+  },
+  {
+    "club": "Bournemouth",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/bournemouth.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/y08nak1534071116.png"
+  },
+  {
+    "club": "Brentford",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/brentford.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/grv1aw1546453779.png"
+  },
+  {
+    "club": "Freiburg",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/freiburg.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/urwtup1473453288.png"
+  },
+  {
+    "club": "Werder Bremen",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/werder-bremen.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/tkvqan1716960454.png"
+  },
+  {
+    "club": "Napoli",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/napoli.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/l8qyxv1742982541.png"
+  },
+  {
+    "club": "Como",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/como.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/02x81t1627405841.png"
+  },
+  {
+    "club": "Getafe",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/getafe.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/eyh2891655594452.png"
+  },
+  {
+    "club": "RB Leipzig",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/rb-leipzig.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/zjgapo1594244951.png"
+  },
+  {
+    "club": "Juventus",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/juventus.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/uxf0gr1742983727.png"
+  },
+  {
+    "club": "Levante",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/levante.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/xwtxsx1473503739.png"
+  },
+  {
+    "club": "Union Berlin",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/union-berlin.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/q0o5001599679795.png"
+  },
+  {
+    "club": "Toulouse",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/toulouse.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/17eqox1688449282.png"
+  },
+  {
+    "club": "Nice",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/nice.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/msy7ly1621593859.png"
+  },
+  {
+    "club": "Girona",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/girona.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/kfu7zu1659897499.png"
+  },
+  {
+    "club": "Marseille",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/marseille.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/uutsyt1473504764.png"
+  },
+  {
+    "club": "Rennes",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/rennes.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/ypturx1473504818.png"
+  },
+  {
+    "club": "Valencia",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/valencia.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/dm8l6o1655594864.png"
+  },
+  {
+    "club": "Real Sociedad",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/real-sociedad.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/vptvpr1473502986.png"
+  },
+  {
+    "club": "Wolfsburg",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/wolfsburg.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/07kp421599680274.png"
+  },
+  {
+    "club": "Lille",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/lille.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/2giize1534005340.png"
+  },
+  {
+    "club": "Angers",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/angers.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/ix6q4w1678808069.png"
+  },
+  {
+    "club": "Cremonese",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/cremonese.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/6ng2vy1579708291.png"
+  },
+  {
+    "club": "Lazio",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/lazio.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/rwqyvs1448806608.png"
+  },
+  {
+    "club": "Nantes",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/nantes.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/mla9x61678808018.png"
+  },
+  {
+    "club": "Bologna",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/bologna.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/2qi1u31655592366.png"
+  },
+  {
+    "club": "Parma",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/parma.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/6yiaxs1627406063.png"
+  },
+  {
+    "club": "Celta Vigo",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/celta-vigo.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/xfjtku1690436219.png"
+  },
+  {
+    "club": "Wolves",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/wolves.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/saimjk1656789616.png"
+  },
+  {
+    "club": "Real Betis",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/real-betis.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/2oqulv1663245386.png"
+  },
+  {
+    "club": "Monaco",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/monaco.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/exjf5l1678808044.png"
+  },
+  {
+    "club": "Eintracht Frankfurt",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/eintracht-frankfurt.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/rurwpy1473453269.png"
+  },
+  {
+    "club": "Udinese",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/udinese.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/vwvstr1448806811.png"
+  },
+  {
+    "club": "Sevilla",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/sevilla.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/vpsqqx1473502977.png"
+  },
+  {
+    "club": "Burnley",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/burnley.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/ql7nl31686893820.png"
+  },
+  {
+    "club": "West Ham United",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/west-ham-united.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/yutyxs1467459956.png"
+  },
+  {
+    "club": "Lyon",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/lyon.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/blk9771656932845.png"
+  },
+  {
+    "club": "Leeds United",
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/leeds-united.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/jcgrml1756649030.png"
+  },
+  {
+    "club": "Augsburg",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/augsburg.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/xqyyvq1473453233.png"
+  },
+  {
+    "club": "Sassuolo",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/sassuolo.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/xystvp1448806138.png"
+  },
+  {
+    "club": "Mallorca",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/mallorca.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/ssptsx1473503730.png"
+  },
+  {
+    "club": "Alavés",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/alaves.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/mfn99h1734673842.png"
+  },
+  {
+    "club": "Elche",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/elche.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/e4vaw51655594332.png"
+  },
+  {
+    "club": "Osasuna",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/osasuna.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/rvspvt1473502960.png"
+  },
+  {
+    "club": "Espanyol",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/espanyol.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/867nzz1681703222.png"
+  },
+  {
+    "club": "Hellas Verona",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/hellas-verona.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/p6camf1593457737.png"
+  },
+  {
+    "club": "Rayo Vallecano",
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/rayo-vallecano.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/nzhu941655595465.png"
+  },
+  {
+    "club": "Lecce",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/lecce.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/j4vznr1567365249.png"
+  },
+  {
+    "club": "Metz",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/metz.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/1iuew61688452857.png"
+  },
+  {
+    "club": "Lorient",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/lorient.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/sxsttw1473504748.png"
+  },
+  {
+    "club": "Pisa",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/pisa.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/2eso9w1579708309.png"
+  },
+  {
+    "club": "Paris FC",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/paris-fc.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/yuvtsy1447594254.png"
+  },
+  {
+    "club": "Hoffenheim",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/hoffenheim.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/9hwvb21621593919.png"
+  },
+  {
+    "club": "Brest",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/brest.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/z69be41598797026.png"
+  },
+  {
+    "club": "St Pauli",
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/st-pauli.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/5qupxa1608237013.png"
+  },
+  {
+    "club": "Torino",
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/torino.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/xxprty1448806802.png"
+  },
+  {
+    "club": "Auxerre",
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/club-badges/clubs/auxerre.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/team/badge/lzdtbf1658753355.png"
+  }
+]

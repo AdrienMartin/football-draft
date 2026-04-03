@@ -234,6 +234,10 @@ export function getNationalityFlagCode(nationality: string) {
   return nationalityToFlagCode[nationality] ?? null;
 }
 
+export function formatLeagueLabel(league: string) {
+  return league.replace(/^[a-z]{2,3}\s+/i, '');
+}
+
 export function formatTeamValue(totalValue: number) {
   return `${totalValue} MEUR`;
 }

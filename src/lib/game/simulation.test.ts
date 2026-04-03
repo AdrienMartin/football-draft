@@ -335,6 +335,25 @@ describe('simulateMatch balancing', () => {
     expect(centralChanceEvents).toBeGreaterThan(35);
   });
 
+  it('adds more diverse sequence outcomes to the event log', () => {
+    const iterations = 100;
+    let errorEvents = 0;
+    let aerialEvents = 0;
+    let reboundEvents = 0;
+
+    for (let index = 0; index < iterations; index += 1) {
+      const result = simulateMatch(wideThreatTeam, balancedAiTeam);
+
+      errorEvents += result.events.filter((event) => event.type === 'error').length;
+      aerialEvents += result.events.filter((event) => event.type === 'aerial').length;
+      reboundEvents += result.events.filter((event) => event.type === 'rebound').length;
+    }
+
+    expect(errorEvents).toBeGreaterThan(4);
+    expect(aerialEvents).toBeGreaterThan(6);
+    expect(reboundEvents).toBeGreaterThan(4);
+  });
+
   it('keeps scorers and assisters concentrated on plausible roles over many matches', () => {
     const iterations = 120;
     let defenderGoals = 0;

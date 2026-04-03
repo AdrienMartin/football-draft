@@ -5,11 +5,14 @@ import {
   buildChanceText,
   buildCounterText,
   buildCrossText,
+  buildErrorText,
   buildGoalText,
   buildHighlights,
   buildPressureText,
+  buildReboundText,
   buildSaveText,
   buildShotText,
+  buildAerialText,
 } from './matchCommentary';
 
 export type MatchSideSummary = {
@@ -28,7 +31,18 @@ export type MatchSideSummary = {
 export type MatchEvent = {
   minute: number;
   team: 'user' | 'ai';
-  type: 'goal' | 'chance' | 'save' | 'pressure' | 'shot' | 'counter' | 'cross' | 'block';
+  type:
+    | 'goal'
+    | 'chance'
+    | 'save'
+    | 'pressure'
+    | 'shot'
+    | 'counter'
+    | 'cross'
+    | 'block'
+    | 'error'
+    | 'aerial'
+    | 'rebound';
   scorer?: string;
   assister?: string;
   xg?: number;
@@ -820,7 +834,27 @@ function resolveBuildPhase(state: SequenceState) {
     );
   }
 
-  return Math.random() < successChance ? 'midfield' : null;
+  if (Math.random() < successChance) {
+    return 'midfield';
+  }
+
+  if (Math.random() < 0.12) {
+    addEvent(
+      state.events,
+      buildLiveEvent(
+        state.minute,
+        state.attackingTeam.label,
+        'error',
+        buildErrorText(state.attackingTeam.label, state.events, builder),
+        state.score,
+        { assister: builder },
+      ),
+    );
+
+    return Math.random() < 0.55 ? 'midfield' : 'finalThird';
+  }
+
+  return null;
 }
 
 function resolveMidfieldPhase(state: SequenceState) {
@@ -903,6 +937,54 @@ function resolveFinalThirdPhase(state: SequenceState) {
         { assister: actionCreator },
       ),
     );
+
+    if (Math.random() < 0.28) {
+      const aerialTarget =
+        pickReliablePlayerName(state.attackingTeam, state.attackingTeam.wideScorers) ??
+        pickReliablePlayerName(state.attackingTeam, state.attackingTeam.scorers);
+      const aerialPlayer = getNamedPlayer(state.attackingTeam, aerialTarget);
+      const aerialDuelScore =
+        getPositioningScore(aerialPlayer) * 0.34 +
+        (aerialPlayer?.stats.physical ?? 50) * 0.3 +
+        state.attackingTeam.summary.finishing * 0.18 +
+        state.attackingTeam.widePlay * 0.08 -
+        state.defendingTeam.summary.shotPrevention * 0.28 -
+        state.defendingTeam.summary.saveRate * 0.1 +
+        randomBetween(-8, 10);
+
+      addEvent(
+        state.events,
+        buildLiveEvent(
+          state.minute + 1,
+          state.attackingTeam.label,
+          'aerial',
+          buildAerialText(state.attackingTeam.label, state.events, aerialTarget),
+          state.score,
+          { scorer: aerialTarget, assister: actionCreator },
+        ),
+      );
+
+      if (aerialDuelScore >= 47) {
+        return 'box';
+      }
+
+      if (Math.random() < 0.24) {
+        addEvent(
+          state.events,
+          buildLiveEvent(
+            state.minute + 1,
+            state.attackingTeam.label,
+            'rebound',
+            buildReboundText(state.attackingTeam.label, state.events, aerialTarget),
+            state.score,
+            { scorer: aerialTarget, assister: actionCreator },
+          ),
+        );
+        return 'box';
+      }
+
+      return null;
+    }
   }
 
   if (Math.random() > successChance) {
@@ -923,10 +1005,10 @@ function resolveFinalThirdPhase(state: SequenceState) {
     if (Math.random() < 0.34) {
       const speculativeXg = roundXg(
         state.attackMode === 'wide'
-          ? randomBetween(0.04, 0.1)
+          ? randomBetween(0.015, 0.05)
           : state.attackMode === 'transition'
-            ? randomBetween(0.06, 0.14)
-            : randomBetween(0.05, 0.12),
+            ? randomBetween(0.025, 0.075)
+            : randomBetween(0.02, 0.06),
       );
       const speculativeShooter =
         (state.attackMode === 'wide'
@@ -963,6 +1045,137 @@ function resolveFinalThirdPhase(state: SequenceState) {
   }
 
   return 'box';
+}
+
+function resolveSecondBallPhase(
+  state: SequenceState,
+  baseXg: number,
+  shotTaker: string,
+  actionCreator?: string,
+) {
+  const reboundChance = clamp(
+    0.12 +
+      (state.attackingTeam.summary.finishing - state.defendingTeam.summary.saveRate) / 280 +
+      (state.attackMode === 'wide' ? 0.03 : 0),
+    0.08,
+    0.24,
+  );
+
+  if (Math.random() > reboundChance) {
+    return false;
+  }
+
+  const reboundTaker =
+    pickReliablePlayerName(state.attackingTeam, state.attackingTeam.scorers, shotTaker) ?? shotTaker;
+  const reboundPlayer = getNamedPlayer(state.attackingTeam, reboundTaker);
+  const defendingGoalkeeper = state.defendingTeam.players.find(
+    (player) => getPlayerRole(player.position) === 'GK',
+  );
+  const reboundXg = roundXg(clamp(baseXg * randomBetween(0.24, 0.42), 0.02, 0.12));
+
+  addEvent(
+    state.events,
+    buildLiveEvent(
+      state.minute + 1,
+      state.attackingTeam.label,
+      'rebound',
+      buildReboundText(state.attackingTeam.label, state.events, reboundTaker),
+      state.score,
+      { scorer: reboundTaker, assister: actionCreator },
+    ),
+  );
+
+  const reboundOnTargetChance = clamp(
+    0.34 + (getPositioningScore(reboundPlayer) - state.defendingTeam.summary.shotPrevention) / 170,
+    0.24,
+    0.62,
+  );
+
+  if (Math.random() > reboundOnTargetChance) {
+    addEvent(
+      state.events,
+      buildLiveEvent(
+        state.minute + 2,
+        state.attackingTeam.label,
+        'shot',
+        buildShotText(
+          state.attackingTeam.label,
+          reboundXg,
+          state.events,
+          state.attackMode,
+          reboundTaker,
+        ),
+        state.score,
+        {
+          xg: reboundXg,
+          scorer: reboundTaker,
+          assister: actionCreator,
+        },
+      ),
+    );
+
+    return true;
+  }
+
+  const reboundGoalChance = clamp(
+    0.16 +
+      reboundXg * 1.4 +
+      (getComposureScore(reboundPlayer) - getShotStoppingScore(defendingGoalkeeper)) / 220,
+    0.1,
+    0.34,
+  );
+
+  if (Math.random() < reboundGoalChance) {
+    if (state.attackingTeam.label === 'user') {
+      state.score.user += 1;
+    } else {
+      state.score.ai += 1;
+    }
+
+    addEvent(
+      state.events,
+      buildLiveEvent(
+        state.minute + 2,
+        state.attackingTeam.label,
+        'goal',
+        buildGoalText(
+          state.attackingTeam.label,
+          reboundTaker,
+          state.minute + 2,
+          reboundXg,
+          actionCreator,
+          state.events,
+          state.attackMode,
+        ),
+        state.score,
+        {
+          scorer: reboundTaker,
+          assister: actionCreator,
+          xg: reboundXg,
+        },
+      ),
+    );
+
+    return true;
+  }
+
+  addEvent(
+    state.events,
+    buildLiveEvent(
+      state.minute + 2,
+      state.attackingTeam.label,
+      'save',
+      buildSaveText(state.attackingTeam.label, reboundXg, state.events, reboundTaker),
+      state.score,
+      {
+        xg: reboundXg,
+        scorer: reboundTaker,
+        assister: actionCreator,
+      },
+    ),
+  );
+
+  return true;
 }
 
 function resolveBoxPhase(state: SequenceState) {
@@ -1006,10 +1219,10 @@ function resolveBoxPhase(state: SequenceState) {
 
   const shotXg = roundXg(
     state.attackMode === 'transition'
-      ? clamp((chanceQuality - 18) / 50, 0.14, 0.54)
+      ? clamp((chanceQuality - 31) / 100, 0.05, 0.24)
       : state.attackMode === 'wide'
-        ? clamp((chanceQuality - 20) / 54, 0.1, 0.4)
-        : clamp((chanceQuality - 19) / 52, 0.12, 0.48),
+        ? clamp((chanceQuality - 33) / 110, 0.03, 0.18)
+        : clamp((chanceQuality - 32) / 105, 0.04, 0.21),
   );
   state.xg += shotXg;
 
@@ -1048,9 +1261,11 @@ function resolveBoxPhase(state: SequenceState) {
         'block',
         buildBlockText(state.attackingTeam.label, state.events, state.attackMode),
         state.score,
-        { xg: roundXg(shotXg * 0.72), assister: actionCreator },
+        { xg: roundXg(shotXg * 0.5), assister: actionCreator },
       ),
     );
+
+    resolveSecondBallPhase(state, shotXg, shotTaker, actionCreator);
     return;
   }
 
@@ -1107,6 +1322,8 @@ function resolveBoxPhase(state: SequenceState) {
         },
       ),
     );
+
+    resolveSecondBallPhase(state, shotXg, shotTaker, actionCreator);
     return;
   }
 

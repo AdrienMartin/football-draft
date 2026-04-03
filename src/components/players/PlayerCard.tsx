@@ -1,5 +1,7 @@
 import type { Player } from '../../types/player';
+import { getClubBadgeUrl, getLeagueBadgeUrl } from '../../lib/assets/badges';
 import {
+  formatLeagueLabel,
   getNationalityFlagCode,
   getNationalityLabel,
 } from '../../lib/players/formatters';
@@ -112,6 +114,8 @@ export function PlayerCard({
 }: PlayerCardProps) {
   const nationalityFlagCode = getNationalityFlagCode(player.nationality);
   const statItems = getStatItems(player);
+  const clubBadgeUrl = getClubBadgeUrl(player.club, player.league);
+  const leagueBadgeUrl = getLeagueBadgeUrl(player.league);
 
   return (
     <article className="rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_32%),linear-gradient(180deg,_rgba(15,23,42,0.92),_rgba(15,23,42,0.78))] p-5 shadow-xl shadow-black/20">
@@ -150,9 +154,30 @@ export function PlayerCard({
                 </a>
               )}
             </div>
-            <p className="mt-1 text-sm text-slate-300">
-              {player.club} - {player.league}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+              <span className="inline-flex items-center gap-2">
+                {clubBadgeUrl && (
+                  <img
+                    src={clubBadgeUrl}
+                    alt=""
+                    className="h-4 w-4 object-contain"
+                    loading="lazy"
+                  />
+                )}
+                <span>{player.club}</span>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                {leagueBadgeUrl && (
+                  <img
+                    src={leagueBadgeUrl}
+                    alt=""
+                    className="h-4 w-4 object-contain"
+                    loading="lazy"
+                  />
+                )}
+                <span>{formatLeagueLabel(player.league)}</span>
+              </span>
+            </div>
           </div>
         </div>
 

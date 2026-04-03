@@ -1,5 +1,6 @@
 import type { PlayerRole } from '../../lib/game/draft';
-import { formatPlayerCount } from '../../lib/players/formatters';
+import { getClubBadgeUrl, getLeagueBadgeUrl } from '../../lib/assets/badges';
+import { formatLeagueLabel, formatPlayerCount } from '../../lib/players/formatters';
 import type { Player } from '../../types/player';
 import { PlayerCard } from '../players/PlayerCard';
 
@@ -82,6 +83,13 @@ export function DraftAvailablePlayers({
   canPick,
   onPick,
 }: DraftAvailablePlayersProps) {
+  const selectedLeagueBadgeUrl =
+    selectedLeague !== 'ALL' ? getLeagueBadgeUrl(selectedLeague) : null;
+  const selectedClubBadgeUrl =
+    selectedLeague !== 'ALL' && selectedClub !== 'ALL'
+      ? getClubBadgeUrl(selectedClub, selectedLeague)
+      : null;
+
   return (
     <section className="rounded-3xl border border-white/10 bg-slate-950/50 p-4 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -166,8 +174,16 @@ export function DraftAvailablePlayers({
 
           <div className="grid gap-3 md:grid-cols-2 xl:col-span-7">
             <label className="text-sm text-slate-300">
-            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-              Championnat
+            <span className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+              <span>Championnat</span>
+              {selectedLeagueBadgeUrl && (
+                <img
+                  src={selectedLeagueBadgeUrl}
+                  alt=""
+                  className="h-4 w-4 object-contain"
+                  loading="lazy"
+                />
+              )}
             </span>
             <select
               value={selectedLeague}
@@ -177,15 +193,23 @@ export function DraftAvailablePlayers({
               <option value="ALL">Tous</option>
               {leagueOptions.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {formatLeagueLabel(option)}
                 </option>
               ))}
             </select>
             </label>
 
             <label className="text-sm text-slate-300">
-            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-              Club
+            <span className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+              <span>Club</span>
+              {selectedClubBadgeUrl && (
+                <img
+                  src={selectedClubBadgeUrl}
+                  alt=""
+                  className="h-4 w-4 object-contain"
+                  loading="lazy"
+                />
+              )}
             </span>
             <select
               value={selectedClub}

@@ -1,0 +1,37 @@
+[
+  {
+    "league": "it Serie A",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/league-badges/leagues/it-serie-a.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/league/badge/67q3q21679951383.png",
+    "theSportsDbLeagueId": "4332"
+  },
+  {
+    "league": "de Bundesliga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/league-badges/leagues/de-bundesliga.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png",
+    "theSportsDbLeagueId": "4331"
+  },
+  {
+    "league": "es La Liga",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/league-badges/leagues/es-la-liga.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png",
+    "theSportsDbLeagueId": "4335"
+  },
+  {
+    "league": "eng Premier League",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/league-badges/leagues/eng-premier-league.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png",
+    "theSportsDbLeagueId": "4328"
+  },
+  {
+    "league": "fr Ligue 1",
+    "badgeUrl": "https://lusrmejdlhscwfpbizqw.supabase.co/storage/v1/object/public/league-badges/leagues/fr-ligue-1.png",
+    "badgeSource": "TheSportsDB",
+    "sourceUrl": "https://r2.thesportsdb.com/images/media/league/badge/9f7z9d1742983155.png",
+    "theSportsDbLeagueId": "4334"
+  }
+]

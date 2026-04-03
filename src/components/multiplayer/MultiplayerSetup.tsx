@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { applyDraftRules, type DraftRules } from '../../lib/game/rules';
 import { isPlayerConnectionStale } from '../../lib/multiplayer/rooms';
-import { formatPlayerCount } from '../../lib/players/formatters';
+import { formatLeagueLabel, formatPlayerCount } from '../../lib/players/formatters';
 import type { MultiplayerSetupState } from '../../lib/multiplayer/types';
 import { isSupabaseConfigured } from '../../lib/supabase/client';
 import type { Player } from '../../types/player';
@@ -44,7 +44,7 @@ async function copyTextWithFallback(text: string) {
 
 function formatRulesSummary(rules: DraftRules) {
   const parts = [
-    rules.league ?? 'Tous les championnats',
+    rules.league ? formatLeagueLabel(rules.league) : 'Tous les championnats',
     rules.nationality ?? 'Toutes les nationalités',
     rules.maxTeamValue ? `${rules.maxTeamValue} MEUR max` : 'Sans budget max',
   ];
@@ -385,7 +385,7 @@ export function MultiplayerSetup({
               <option value="ALL">Tous</option>
               {leagueOptions.map((league) => (
                 <option key={league} value={league}>
-                  {league}
+                  {formatLeagueLabel(league)}
                 </option>
               ))}
             </select>
