@@ -17,9 +17,9 @@ export function MatchPreview({
   onPlay,
 }: MatchPreviewProps) {
   return (
-    <section className="relative rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.08),_transparent_30%),rgba(255,255,255,0.05)] p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
+    <section className="relative rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.08),_transparent_30%),rgba(255,255,255,0.05)] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
       <div className="max-w-3xl">
-        <h2 className="text-2xl font-semibold text-white">Simulation du match</h2>
+        <h2 className="text-xl font-semibold text-white sm:text-2xl">Simulation du match</h2>
         <p className="mt-3 text-sm leading-6 text-slate-300">
           {isMultiplayer
             ? 'Les equipes sont pretes. Les deux joueurs doivent confirmer le lancement pour demarrer un deroule synchronise.'

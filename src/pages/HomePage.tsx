@@ -496,18 +496,18 @@ export function HomePage() {
           />
           <div
             className={[
-              "relative w-full max-w-2xl rounded-[32px] border border-cyan-200/30 bg-slate-950/92 px-8 py-8 shadow-[0_32px_120px_rgba(2,132,199,0.3)] backdrop-blur-xl transition-all duration-500 sm:px-10 sm:py-10",
+              "relative w-full max-w-2xl rounded-[32px] border border-cyan-200/30 bg-slate-950/92 px-5 py-6 shadow-[0_32px_120px_rgba(2,132,199,0.3)] backdrop-blur-xl transition-all duration-500 sm:px-8 sm:py-8 xl:px-10 xl:py-10",
               showDraftStarterBanner
                 ? "translate-y-0 scale-100"
                 : "-translate-y-6 scale-95",
             ].join(" ")}
           >
-            <div className="flex items-center justify-between gap-6">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/75">
                   {draftStarterPresentation.lead}
                 </p>
-                <p className="mt-3 text-3xl font-semibold leading-tight text-white sm:text-4xl">
+                <p className="mt-3 text-2xl font-semibold leading-tight text-white sm:text-3xl xl:text-4xl">
                   {draftStarterPresentation.headline}
                 </p>
                 <p className="mt-3 text-sm text-slate-200/80 sm:text-base">
@@ -515,7 +515,7 @@ export function HomePage() {
                 </p>
               </div>
               <div
-                className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28"
+                className="relative mx-auto h-20 w-20 shrink-0 sm:mx-0 sm:h-24 sm:w-24 xl:h-28 xl:w-28"
                 style={{ perspective: "1200px" }}
               >
                 <div className="absolute inset-0 rounded-full bg-cyan-300/10 blur-xl" />

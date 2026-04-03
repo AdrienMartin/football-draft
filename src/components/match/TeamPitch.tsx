@@ -20,7 +20,7 @@ export function TeamPitch({ title, players, side, compact = false }: TeamPitchPr
 
   return (
     <section className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-white">{title}</h3>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-200">
@@ -48,11 +48,11 @@ export function TeamPitch({ title, players, side, compact = false }: TeamPitchPr
 
             return (
               <div key={role}>
-                <div className="flex min-h-20 items-center justify-center gap-3">
+                <div className="flex min-h-20 flex-wrap items-center justify-center gap-3">
                   {rowPlayers.map((player) => (
                     <article
                       key={player.id}
-                      className={`${compact ? 'w-24 px-2 py-2' : 'w-28 px-3 py-2'} rounded-2xl border border-white/15 bg-[linear-gradient(180deg,_rgba(2,6,23,0.58),_rgba(2,6,23,0.4))] text-center shadow-lg shadow-black/20`}
+                      className={`${compact ? 'w-20 px-2 py-2 sm:w-24' : 'w-24 px-3 py-2 sm:w-28'} rounded-2xl border border-white/15 bg-[linear-gradient(180deg,_rgba(2,6,23,0.58),_rgba(2,6,23,0.4))] text-center shadow-lg shadow-black/20`}
                     >
                       <div className="mx-auto h-12 w-12 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                         {player.photoUrl ? (
@@ -68,7 +68,7 @@ export function TeamPitch({ title, players, side, compact = false }: TeamPitchPr
                           </div>
                         )}
                       </div>
-                      <p className={`mt-2 ${compact ? 'text-[11px]' : 'text-xs'} font-semibold text-white`}>
+                      <p className={`mt-2 truncate ${compact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs'} font-semibold text-white`}>
                         {player.name}
                       </p>
                     </article>

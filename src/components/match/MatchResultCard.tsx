@@ -364,25 +364,25 @@ export function MatchResultCard({
       : 'Match en cours';
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur">
-      <h2 className="text-center text-2xl font-semibold text-white">{title}</h2>
+    <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
+      <h2 className="text-center text-xl font-semibold text-white sm:text-2xl">{title}</h2>
 
       <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr]">
         <div
           className={`rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
         >
           <p className="text-sm text-slate-400">Ton équipe</p>
-          <p className="mt-1 text-4xl font-bold text-white">{liveScore.user}</p>
+          <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">{liveScore.user}</p>
           <div className="mt-2 min-h-8 text-sm text-slate-300">
             {scorers.user.length > 0 ? <p>{scorers.user.join(', ')}</p> : null}
           </div>
         </div>
 
-        <div className="flex min-w-24 flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4 md:min-w-24">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
             {!hasStarted ? 'Départ' : isHalfTime ? 'Pause' : 'Chrono'}
           </p>
-          <p className="mt-1 text-3xl font-bold text-white">
+          <p className="mt-1 text-2xl font-bold text-white sm:text-3xl">
             {!hasStarted ? 'Prêt' : isHalfTime ? 'Mi-temps' : `${minute}'`}
           </p>
         </div>
@@ -391,7 +391,7 @@ export function MatchResultCard({
           className={`rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
         >
           <p className="text-sm text-slate-400">{opponentTextParts.cardLabel}</p>
-          <p className="mt-1 text-4xl font-bold text-white">{liveScore.ai}</p>
+          <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">{liveScore.ai}</p>
           <div className="mt-2 min-h-8 text-sm text-slate-300">
             {scorers.ai.length > 0 ? <p>{scorers.ai.join(', ')}</p> : null}
           </div>
@@ -410,20 +410,20 @@ export function MatchResultCard({
       </div>
 
       {isFinished ? (
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {showReplayActions ? (
             <>
               <button
                 type="button"
                 onClick={onReplay}
-                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+                className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 sm:w-auto"
               >
                 Rejouer le match
               </button>
               <button
                 type="button"
                 onClick={onResetDraft}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
               >
                 Nouvelle draft
               </button>
@@ -435,7 +435,7 @@ export function MatchResultCard({
                   type="button"
                   onClick={onRequestRematch}
                   disabled={onlineRematchRequested}
-                  className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+                  className="w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300 sm:w-auto"
                 >
                   {onlineRematchRequested ? 'Revanche demandée' : 'Demander une revanche'}
                 </button>
@@ -443,7 +443,7 @@ export function MatchResultCard({
               <button
                 type="button"
                 onClick={onResetDraft}
-                className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                className="w-full rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 sm:w-auto"
               >
                 Retour à l’accueil
               </button>

@@ -28,13 +28,13 @@ export function LandingPage({
 }: LandingPageProps) {
   return (
     <section className="mx-auto flex min-h-[70vh] max-w-4xl flex-col justify-center">
-      <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 md:p-10">
+      <div className="rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 md:p-10">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-300/80">
               Football Draft
             </p>
-            <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-white md:text-5xl">
+            <h1 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl">
               Construis ton équipe et lance un duel rapide.
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
@@ -43,7 +43,7 @@ export function LandingPage({
             </p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-300 lg:min-w-[168px]">
+          <div className="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-300 sm:w-auto lg:min-w-[168px]">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Format</p>
             <p className="mt-2 whitespace-nowrap font-semibold text-white">Draft 5 vs 5</p>
           </div>
