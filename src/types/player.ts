@@ -44,5 +44,6 @@ export type Player = {
   value: number;
   marketValueEur?: number;
   transfermarktUrl?: string | null;
+  photoUrl?: string | null;
   stats: PlayerStats;
 };

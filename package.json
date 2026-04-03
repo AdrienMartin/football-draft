@@ -11,7 +11,8 @@
     "test": "vitest run",
     "generate:players": "node scripts/generate-players-from-csv.mjs",
     "fetch:transfermarkt": "node scripts/fetch-transfermarkt-dataset.mjs",
-    "fetch:soccerdata": "python scripts/fetch-player-sources-with-soccerdata.py"
+    "fetch:soccerdata": "python scripts/fetch-player-sources-with-soccerdata.py",
+    "fetch:player-photos": "node scripts/fetch-player-photos-from-thesportsdb.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

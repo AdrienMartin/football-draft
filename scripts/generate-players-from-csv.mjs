@@ -11,6 +11,9 @@ const transfermarktPath =
 const understatPath =
   process.env.UNDERSTAT_DATA_PATH ??
   path.join(cwd, 'public', 'data', 'tmp', 'players_understat_soccerdata.csv');
+const playerPhotosPath =
+  process.env.PLAYER_PHOTOS_DATA_PATH ??
+  path.join(cwd, 'public', 'data', 'players_photos.json');
 const outputPath =
   process.argv[5] ?? path.join(cwd, 'public', 'data', 'players.json');
 
@@ -140,6 +143,10 @@ function similarity(left, right) {
   });
 
   return overlap / Math.max(leftTokens.size, rightTokens.size, 1);
+}
+
+function buildPhotoKey(name, club) {
+  return `${normalizeText(name)}__${normalizeText(club)}`;
 }
 
 function computeAvailability(row) {
@@ -1510,7 +1517,7 @@ function computeFinalOverall(baseOverall, sofascoreRating, transfermarkt, age, p
   return clamp(blended, 56, 89);
 }
 
-function buildPlayer(row, index, sofascore, transfermarkt, understat, ranges) {
+function buildPlayer(row, index, sofascore, transfermarkt, understat, ranges, photoEntry = null) {
   const position = mapPosition(row.Pos || '', transfermarkt);
   const age = applyAgeOverrides(row.Player, Math.round(toNumber(row.Age)));
   const stats =
@@ -1548,6 +1555,7 @@ function buildPlayer(row, index, sofascore, transfermarkt, understat, ranges) {
     value,
     marketValueEur: transfermarkt?.marketValueEur || undefined,
     transfermarktUrl: transfermarkt?.url ?? null,
+    photoUrl: photoEntry?.photoUrl ?? null,
     stats,
   };
 }
@@ -1561,9 +1569,17 @@ function main() {
   const understatRows = fs.existsSync(understatPath)
     ? parseCsv(fs.readFileSync(understatPath, 'utf8'))
     : [];
+  const playerPhotoEntries = fs.existsSync(playerPhotosPath)
+    ? JSON.parse(fs.readFileSync(playerPhotosPath, 'utf8'))
+    : [];
 
   const transfermarktIndex = buildTransfermarktIndex(transfermarktRows);
   const understatIndex = buildUnderstatIndex(understatRows);
+  const playerPhotosByKey = new Map(
+    playerPhotoEntries
+      .filter((entry) => entry?.name && entry?.club && entry?.photoUrl)
+      .map((entry) => [buildPhotoKey(entry.name, entry.club), entry]),
+  );
   const transfermarktEntries = new Map();
   const understatEntries = new Map();
 
@@ -1597,7 +1613,17 @@ function main() {
         understatMatchCount += 1;
       }
 
-      return buildPlayer(row, index, sofascoreEntry, transfermarktEntry, understatEntry, ranges);
+      const photoEntry = playerPhotosByKey.get(buildPhotoKey(row.Player, row.Squad)) ?? null;
+
+      return buildPlayer(
+        row,
+        index,
+        sofascoreEntry,
+        transfermarktEntry,
+        understatEntry,
+        ranges,
+        photoEntry,
+      );
     })
     .sort((a, b) => b.rating - a.rating || b.value - a.value);
 

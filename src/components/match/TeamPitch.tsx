@@ -1,8 +1,5 @@
 import { getPlayerRole } from '../../lib/game/draft';
-import {
-  formatTeamValue,
-  getNationalityLabel,
-} from '../../lib/players/formatters';
+import { formatTeamValue } from '../../lib/players/formatters';
 import type { Player } from '../../types/player';
 
 type TeamPitchProps = {
@@ -57,17 +54,22 @@ export function TeamPitch({ title, players, side, compact = false }: TeamPitchPr
                       key={player.id}
                       className={`${compact ? 'w-24 px-2 py-2' : 'w-28 px-3 py-2'} rounded-2xl border border-white/15 bg-[linear-gradient(180deg,_rgba(2,6,23,0.58),_rgba(2,6,23,0.4))] text-center shadow-lg shadow-black/20`}
                     >
-                      <p className={`${compact ? 'text-[11px]' : 'text-xs'} font-semibold text-white`}>
-                        {player.name}
-                      </p>
-                      <div className="mt-1 flex items-center justify-center gap-1.5">
-                        <p className="text-[10px] text-emerald-100/80">{player.position}</p>
-                        <span className="rounded-full border border-white/10 bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                          {player.rating}
-                        </span>
+                      <div className="mx-auto h-12 w-12 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                        {player.photoUrl ? (
+                          <img
+                            src={player.photoUrl}
+                            alt={player.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold tracking-[0.18em] text-slate-400">
+                            {player.position}
+                          </div>
+                        )}
                       </div>
-                      <p className="mt-1 text-[10px] text-slate-300">
-                        {getNationalityLabel(player.nationality)}
+                      <p className={`mt-2 ${compact ? 'text-[11px]' : 'text-xs'} font-semibold text-white`}>
+                        {player.name}
                       </p>
                     </article>
                   ))}

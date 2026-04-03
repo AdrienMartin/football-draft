@@ -116,28 +116,44 @@ export function PlayerCard({
   return (
     <article className="rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_32%),linear-gradient(180deg,_rgba(15,23,42,0.92),_rgba(15,23,42,0.78))] p-5 shadow-xl shadow-black/20">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="text-lg font-semibold text-white">{player.name}</p>
-            {player.transfermarktUrl && (
-              <a
-                href={player.transfermarktUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Voir ${player.name} sur Transfermarkt`}
-                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 transition hover:bg-white/10"
-              >
-                <img
-                  src={TRANSFERMARKT_ICON_URL}
-                  alt=""
-                  className="h-3.5 w-3.5 rounded-sm"
-                />
-              </a>
+        <div className="flex items-start gap-4">
+          <div className="h-16 w-16 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+            {player.photoUrl ? (
+              <img
+                src={player.photoUrl}
+                alt={player.name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs font-semibold tracking-[0.18em] text-slate-400">
+                {player.position}
+              </div>
             )}
           </div>
-          <p className="mt-1 text-sm text-slate-300">
-            {player.club} - {player.league}
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-lg font-semibold text-white">{player.name}</p>
+              {player.transfermarktUrl && (
+                <a
+                  href={player.transfermarktUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Voir ${player.name} sur Transfermarkt`}
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/10 bg-white/5 transition hover:bg-white/10"
+                >
+                  <img
+                    src={TRANSFERMARKT_ICON_URL}
+                    alt=""
+                    className="h-3.5 w-3.5 rounded-sm"
+                  />
+                </a>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-slate-300">
+              {player.club} - {player.league}
+            </p>
+          </div>
         </div>
 
         <div className={`rounded-2xl border px-3 py-2 text-center ${getRatingTone(player.rating)}`}>
