@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { DraftAvailablePlayers } from "../components/draft/DraftAvailablePlayers";
+import {
+  DraftAvailablePlayers,
+  type DraftPlayersViewMode,
+} from "../components/draft/DraftAvailablePlayers";
 import { DraftStatus } from "../components/draft/DraftStatus";
 import { DraftTeamPanel } from "../components/draft/DraftTeamPanel";
 import { LandingPage } from "../components/landing/LandingPage";
@@ -30,8 +33,6 @@ import { subscribeToMultiplayerRoom } from "../lib/multiplayer/rooms";
 import { loadPlayers } from "../lib/players/loadPlayers";
 import { useGameStore } from "../store/useGameStore";
 
-const PLAYERS_PER_PAGE = 5;
-
 export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,9 @@ export function HomePage() {
   const [minValue, setMinValue] = useState("");
   const [maxValue, setMaxValue] = useState("");
   const [sortOption, setSortOption] = useState<DraftSortOption>("rating-desc");
+  const [draftPlayersViewMode, setDraftPlayersViewMode] =
+    useState<DraftPlayersViewMode>("cards");
+  const [playersPerPage, setPlayersPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
 
   const mode = useGameStore((state) => state.mode);
@@ -179,11 +183,11 @@ export function HomePage() {
 
   const totalPages = Math.max(
     1,
-    Math.ceil(sortedPlayers.length / PLAYERS_PER_PAGE),
+    Math.ceil(sortedPlayers.length / playersPerPage),
   );
   const paginatedPlayers = sortedPlayers.slice(
-    (currentPage - 1) * PLAYERS_PER_PAGE,
-    currentPage * PLAYERS_PER_PAGE,
+    (currentPage - 1) * playersPerPage,
+    currentPage * playersPerPage,
   );
 
   useEffect(() => {
@@ -244,6 +248,7 @@ export function HomePage() {
     minValue,
     maxValue,
     sortOption,
+    playersPerPage,
     sortedPlayers.length,
   ]);
 
@@ -582,6 +587,11 @@ export function HomePage() {
               totalFilteredPlayers={sortedPlayers.length}
               currentPage={currentPage}
               totalPages={totalPages}
+              itemsPerPage={playersPerPage}
+              onItemsPerPageChange={(value) => {
+                setPlayersPerPage(value);
+                setCurrentPage(1);
+              }}
               onPreviousPage={() =>
                 setCurrentPage((page) => Math.max(1, page - 1))
               }
@@ -624,6 +634,8 @@ export function HomePage() {
                 showDraftStarterBanner,
               )}
               onPick={userPickPlayer}
+              viewMode={draftPlayersViewMode}
+              onViewModeChange={setDraftPlayersViewMode}
             />
           </div>
 

@@ -1,23 +1,29 @@
-import type { PlayerRole } from '../../lib/game/draft';
-import { getClubBadgeUrl, getLeagueBadgeUrl } from '../../lib/assets/badges';
+import { useRef } from "react";
+import { getClubBadgeUrl, getLeagueBadgeUrl } from "../../lib/assets/badges";
+import type { PlayerRole } from "../../lib/game/draft";
 import {
   formatLeagueLabel,
   formatPlayerCount,
+  getNationalityFlagCode,
   getNationalityLabel,
-} from '../../lib/players/formatters';
-import type { Player } from '../../types/player';
-import { PlayerCard } from '../players/PlayerCard';
+} from "../../lib/players/formatters";
+import type { Player } from "../../types/player";
+import { PlayerCard } from "../players/PlayerCard";
+
+export type DraftPlayersViewMode = "cards" | "list";
 
 type DraftAvailablePlayersProps = {
   filteredPlayers: Player[];
   totalFilteredPlayers: number;
   currentPage: number;
   totalPages: number;
+  itemsPerPage: number;
+  onItemsPerPageChange: (value: number) => void;
   onPreviousPage: () => void;
   onNextPage: () => void;
-  availableRoleFilters: Array<'ALL' | PlayerRole>;
-  selectedRole: 'ALL' | PlayerRole;
-  onSelectRole: (role: 'ALL' | PlayerRole) => void;
+  availableRoleFilters: Array<"ALL" | PlayerRole>;
+  selectedRole: "ALL" | PlayerRole;
+  onSelectRole: (role: "ALL" | PlayerRole) => void;
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   nationalityOptions: string[];
@@ -40,22 +46,52 @@ type DraftAvailablePlayersProps = {
   onMinValueChange: (value: string) => void;
   onMaxValueChange: (value: string) => void;
   onResetFilters: () => void;
-  sortOption: 'rating-desc' | 'value-desc' | 'value-asc' | 'name-asc' | 'name-desc';
+  sortOption:
+    | "rating-desc"
+    | "value-desc"
+    | "value-asc"
+    | "name-asc"
+    | "name-desc";
   onSelectSort: (
-    value: 'rating-desc' | 'value-desc' | 'value-asc' | 'name-asc' | 'name-desc',
+    value:
+      | "rating-desc"
+      | "value-desc"
+      | "value-asc"
+      | "name-asc"
+      | "name-desc",
   ) => void;
   requiredRoles: PlayerRole[];
   maxTeamValue: number | null;
   currentTeamValue: number;
   canPick: boolean;
   onPick: (playerId: number) => void;
+  viewMode: DraftPlayersViewMode;
+  onViewModeChange: (value: DraftPlayersViewMode) => void;
 };
+
+function getRatingToneClass(rating: number) {
+  if (rating >= 85) {
+    return "border-amber-300/30 bg-amber-300/15 text-amber-100";
+  }
+
+  if (rating >= 80) {
+    return "border-emerald-300/25 bg-emerald-400/15 text-emerald-100";
+  }
+
+  if (rating >= 75) {
+    return "border-sky-300/25 bg-sky-400/15 text-sky-100";
+  }
+
+  return "border-white/10 bg-white/5 text-slate-200";
+}
 
 export function DraftAvailablePlayers({
   filteredPlayers,
   totalFilteredPlayers,
   currentPage,
   totalPages,
+  itemsPerPage,
+  onItemsPerPageChange,
   onPreviousPage,
   onNextPage,
   availableRoleFilters,
@@ -90,24 +126,64 @@ export function DraftAvailablePlayers({
   currentTeamValue,
   canPick,
   onPick,
+  viewMode,
+  onViewModeChange,
 }: DraftAvailablePlayersProps) {
+  const listTopRef = useRef<HTMLDivElement | null>(null);
   const selectedLeagueBadgeUrl =
-    selectedLeague !== 'ALL' ? getLeagueBadgeUrl(selectedLeague) : null;
+    selectedLeague !== "ALL" ? getLeagueBadgeUrl(selectedLeague) : null;
   const selectedClubBadgeUrl =
-    selectedLeague !== 'ALL' && selectedClub !== 'ALL'
+    selectedLeague !== "ALL" && selectedClub !== "ALL"
       ? getClubBadgeUrl(selectedClub, selectedLeague)
       : null;
+
+  const scrollListToTop = () => {
+    window.requestAnimationFrame(() => {
+      listTopRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
 
   return (
     <section className="rounded-3xl border border-white/10 bg-slate-950/50 p-4 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
-          {maxTeamValue !== null && <p>Budget : {currentTeamValue} / {maxTeamValue} MEUR</p>}
-          <p className={maxTeamValue !== null ? 'mt-2' : undefined}>
+          {maxTeamValue !== null && (
+            <p>
+              Budget : {currentTeamValue} / {maxTeamValue} MEUR
+            </p>
+          )}
+          <p className={maxTeamValue !== null ? "mt-2" : undefined}>
             {requiredRoles.length > 0
-              ? `${requiredRoles.length > 1 ? 'Postes manquants' : 'Poste manquant'} : ${requiredRoles.join(', ')}`
-              : 'Tous les postes minimum sont deja couverts.'}
+              ? `${requiredRoles.length > 1 ? "Postes manquants" : "Poste manquant"} : ${requiredRoles.join(", ")}`
+              : "Tous les postes minimum sont deja couverts."}
           </p>
+        </div>
+        <div className="inline-flex rounded-2xl border border-white/10 bg-white/5 p-1">
+          <button
+            type="button"
+            onClick={() => onViewModeChange("cards")}
+            className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+              viewMode === "cards"
+                ? "bg-emerald-500 text-slate-950"
+                : "text-slate-300 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            Cartes
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewModeChange("list")}
+            className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+              viewMode === "list"
+                ? "bg-emerald-500 text-slate-950"
+                : "text-slate-300 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            Liste
+          </button>
         </div>
       </div>
 
@@ -123,8 +199,8 @@ export function DraftAvailablePlayers({
                 onClick={() => onSelectRole(role)}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                   isActive
-                    ? 'bg-emerald-500 text-slate-950'
-                    : 'border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+                    ? "bg-emerald-500 text-slate-950"
+                    : "border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
                 }`}
               >
                 {role}
@@ -150,7 +226,7 @@ export function DraftAvailablePlayers({
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => onSearchQueryChange('')}
+                  onClick={() => onSearchQueryChange("")}
                   aria-label="Reinitialiser la recherche"
                   className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
                 >
@@ -221,11 +297,11 @@ export function DraftAvailablePlayers({
             <select
               value={selectedClub}
               onChange={(event) => onSelectClub(event.target.value)}
-              disabled={selectedLeague === 'ALL' || clubOptions.length === 0}
+              disabled={selectedLeague === "ALL" || clubOptions.length === 0}
               className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="ALL">
-                {selectedLeague === 'ALL' ? 'Choisis un championnat' : 'Tous'}
+                {selectedLeague === "ALL" ? "Choisis un championnat" : "Tous"}
               </option>
               {clubOptions.map((option) => (
                 <option key={option} value={option}>
@@ -304,11 +380,11 @@ export function DraftAvailablePlayers({
               onChange={(event) =>
                 onSelectSort(
                   event.target.value as
-                    | 'rating-desc'
-                    | 'value-desc'
-                    | 'value-asc'
-                    | 'name-asc'
-                    | 'name-desc',
+                    | "rating-desc"
+                    | "value-desc"
+                    | "value-asc"
+                    | "name-asc"
+                    | "name-desc",
                 )
               }
               className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
@@ -323,11 +399,30 @@ export function DraftAvailablePlayers({
         </div>
       </div>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        ref={listTopRef}
+        className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm text-slate-400">
-            {formatPlayerCount(totalFilteredPlayers)} • Page {currentPage} sur {totalPages}
+            {formatPlayerCount(totalFilteredPlayers)} • Page {currentPage} sur{" "}
+            {totalPages}
           </p>
+          <label className="inline-flex items-center gap-2 text-sm text-slate-400">
+            <select
+              value={itemsPerPage}
+              onChange={(event) =>
+                onItemsPerPageChange(Number(event.target.value))
+              }
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {[5, 10, 15, 20].map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             onClick={onResetFilters}
@@ -356,16 +451,169 @@ export function DraftAvailablePlayers({
         </div>
       </div>
 
-      <div className="grid gap-4">
-        {filteredPlayers.map((player) => (
-          <PlayerCard
-            key={player.id}
-            player={player}
-            actionLabel={canPick ? 'Drafter ce joueur' : 'Attendre ton tour'}
-            onAction={() => onPick(player.id)}
-            disabled={!canPick}
-          />
-        ))}
+      {viewMode === "cards" ? (
+        <div className="grid gap-4">
+          {filteredPlayers.map((player) => (
+            <PlayerCard
+              key={player.id}
+              player={player}
+              actionLabel={canPick ? "Drafter ce joueur" : "Attendre ton tour"}
+              onAction={() => onPick(player.id)}
+              disabled={!canPick}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60">
+          <div className="divide-y divide-white/10">
+            {filteredPlayers.map((player) => {
+              const nationalityFlagCode = getNationalityFlagCode(
+                player.nationality,
+              );
+              const clubBadgeUrl = getClubBadgeUrl(player.club, player.league);
+              const leagueBadgeUrl = getLeagueBadgeUrl(player.league);
+
+              return (
+                <article
+                  key={player.id}
+                  className="grid gap-4 px-4 py-4 transition hover:bg-white/[0.03] xl:grid-cols-[minmax(0,2.2fr)_110px_120px_150px] xl:items-center xl:px-5"
+                >
+                  <div className="flex min-w-0 items-start gap-4">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                      {player.photoUrl ? (
+                        <img
+                          src={player.photoUrl}
+                          alt={player.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs font-semibold tracking-[0.16em] text-slate-400">
+                          {player.position}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-base font-semibold text-white">
+                          {player.name}
+                        </p>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300">
+                          {player.position}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300">
+                          {player.age} ans
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+                        <span className="inline-flex items-center gap-2">
+                          {nationalityFlagCode && (
+                            <span
+                              className={`fi fi-${nationalityFlagCode} h-3.5 w-[18px] rounded-sm`}
+                            />
+                          )}
+                          <span>{getNationalityLabel(player.nationality)}</span>
+                        </span>
+
+                        <span className="inline-flex items-center gap-2">
+                          {clubBadgeUrl && (
+                            <img
+                              src={clubBadgeUrl}
+                              alt=""
+                              className="h-4 w-4 object-contain"
+                              loading="lazy"
+                            />
+                          )}
+                          <span>{player.club}</span>
+                        </span>
+
+                        <span className="inline-flex items-center gap-2">
+                          {leagueBadgeUrl && (
+                            <img
+                              src={leagueBadgeUrl}
+                              alt=""
+                              className="h-4 w-4 object-contain"
+                              loading="lazy"
+                            />
+                          )}
+                          <span>{formatLeagueLabel(player.league)}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="xl:flex xl:justify-center">
+                    <div
+                      className={`inline-flex rounded-2xl border px-3 py-2 text-center ${getRatingToneClass(player.rating)}`}
+                    >
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-200/80">
+                          GEN
+                        </p>
+                        <p className="mt-1 text-xl font-bold text-white">
+                          {player.rating}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="xl:flex xl:justify-center">
+                    <div className="inline-flex rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-center">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                          Valeur
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-white">
+                          {player.value} MEUR
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="xl:flex xl:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => onPick(player.id)}
+                      disabled={!canPick}
+                      className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 xl:w-[150px]"
+                    >
+                      {canPick ? "Drafter" : "Attendre"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 flex justify-end">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <button
+            type="button"
+            onClick={() => {
+              onPreviousPage();
+              scrollListToTop();
+            }}
+            disabled={currentPage === 1}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Precedent
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onNextPage();
+              scrollListToTop();
+            }}
+            disabled={currentPage === totalPages}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Suivant
+          </button>
+        </div>
       </div>
     </section>
   );
