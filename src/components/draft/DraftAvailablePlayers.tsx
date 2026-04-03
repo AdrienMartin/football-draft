@@ -409,7 +409,7 @@ export function DraftAvailablePlayers({
             {totalPages}
           </p>
           <label className="inline-flex items-center gap-2 text-sm text-slate-400">
-            <span>Par page</span>
+            <span>• Par page</span>
             <select
               value={itemsPerPage}
               onChange={(event) =>

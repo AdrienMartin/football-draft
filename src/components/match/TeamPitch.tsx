@@ -10,6 +10,50 @@ type TeamPitchProps = {
 };
 
 const roleRows = ['FWD', 'MID', 'DEF', 'GK'] as const;
+const LAST_NAME_PREFIXES = new Set([
+  'al',
+  'bin',
+  'da',
+  'dal',
+  'de',
+  'dei',
+  'del',
+  'della',
+  'der',
+  'di',
+  'dos',
+  'du',
+  'el',
+  'la',
+  'le',
+  'st',
+  'van',
+  'von',
+]);
+
+function getDisplayLastName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length <= 1) {
+    return fullName;
+  }
+
+  const lastParts = [parts[parts.length - 1]];
+  let index = parts.length - 2;
+
+  while (index >= 0) {
+    const candidate = parts[index].toLowerCase();
+
+    if (!LAST_NAME_PREFIXES.has(candidate)) {
+      break;
+    }
+
+    lastParts.unshift(parts[index]);
+    index -= 1;
+  }
+
+  return lastParts.join(' ');
+}
 
 export function TeamPitch({ title, players, side, compact = false }: TeamPitchProps) {
   const averageRating =
@@ -69,7 +113,7 @@ export function TeamPitch({ title, players, side, compact = false }: TeamPitchPr
                         )}
                       </div>
                       <p className={`mt-2 truncate ${compact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs'} font-semibold text-white`}>
-                        {player.name}
+                        {getDisplayLastName(player.name)}
                       </p>
                     </article>
                   ))}
