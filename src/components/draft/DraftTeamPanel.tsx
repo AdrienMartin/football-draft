@@ -24,13 +24,13 @@ export function DraftTeamPanel({
 
   return (
     <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-white">{title}</h3>
           <p className="mt-1 text-sm text-slate-400">Note moyenne {averageRating}</p>
         </div>
         <div
-          className={`rounded-2xl px-3 py-2 text-right text-xs font-semibold ${accentClassName}`}
+          className={`self-start rounded-2xl px-3 py-2 text-right text-xs font-semibold sm:self-auto ${accentClassName}`}
         >
           <p className="text-lg font-bold text-white">{formatTeamValue(totalValue)}</p>
           <p className="mt-1 opacity-80">Valeur totale</p>

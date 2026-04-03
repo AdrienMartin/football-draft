@@ -119,8 +119,8 @@ export function PlayerCard({
 
   return (
     <article className="rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_32%),linear-gradient(180deg,_rgba(15,23,42,0.92),_rgba(15,23,42,0.78))] p-5 shadow-xl shadow-black/20">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
           <div className="h-16 w-16 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
             {player.photoUrl ? (
               <img
@@ -135,9 +135,9 @@ export function PlayerCard({
               </div>
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-lg font-semibold text-white">{player.name}</p>
+              <p className="truncate text-lg font-semibold text-white">{player.name}</p>
               {player.transfermarktUrl && (
                 <a
                   href={player.transfermarktUrl}
@@ -181,7 +181,7 @@ export function PlayerCard({
           </div>
         </div>
 
-        <div className={`rounded-2xl border px-3 py-2 text-center ${getRatingTone(player.rating)}`}>
+        <div className={`self-start rounded-2xl border px-3 py-2 text-center ${getRatingTone(player.rating)}`}>
           <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">GEN</p>
           <p className="text-2xl font-bold text-white">{player.rating}</p>
         </div>

@@ -161,7 +161,7 @@ export function DraftAvailablePlayers({
               : "Tous les postes minimum sont deja couverts."}
           </p>
         </div>
-        <div className="inline-flex rounded-2xl border border-white/10 bg-white/5 p-1">
+        <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-white/5 p-1 sm:inline-flex">
           <button
             type="button"
             onClick={() => onViewModeChange("cards")}
@@ -409,12 +409,13 @@ export function DraftAvailablePlayers({
             {totalPages}
           </p>
           <label className="inline-flex items-center gap-2 text-sm text-slate-400">
+            <span>Par page</span>
             <select
               value={itemsPerPage}
               onChange={(event) =>
                 onItemsPerPageChange(Number(event.target.value))
               }
-              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
             >
               {[5, 10, 15, 20].map((option) => (
                 <option key={option} value={option}>
