@@ -555,7 +555,7 @@ export function HomePage() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.45fr_0.85fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.45fr_0.85fr] xl:gap-8 2xl:grid-cols-[1.55fr_0.85fr]">
           <div className="space-y-6">
             <DraftStatus
               currentTurn={currentTurn}

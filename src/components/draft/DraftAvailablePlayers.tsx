@@ -135,54 +135,51 @@ export function DraftAvailablePlayers({
       </div>
 
       <div className="mb-5 space-y-3">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-14">
-          <div className="grid gap-3 md:grid-cols-2 xl:col-span-7">
-            <label className="text-sm text-slate-300">
-              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-                Recherche
-              </span>
-              <div className="relative">
-                <input
-                  value={searchQuery}
-                  onChange={(event) => onSearchQueryChange(event.target.value)}
-                  placeholder="Nom du joueur"
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 pr-11 text-sm text-white outline-none"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => onSearchQueryChange('')}
-                    aria-label="Reinitialiser la recherche"
-                    className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
-                  >
-                    x
-                  </button>
-                )}
-              </div>
-            </label>
+        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+          <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Recherche
+            </span>
+            <div className="relative">
+              <input
+                value={searchQuery}
+                onChange={(event) => onSearchQueryChange(event.target.value)}
+                placeholder="Nom du joueur"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 pr-11 text-sm text-white outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => onSearchQueryChange('')}
+                  aria-label="Reinitialiser la recherche"
+                  className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  x
+                </button>
+              )}
+            </div>
+          </label>
 
-            <label className="text-sm text-slate-300">
-              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-                Nationalite
-              </span>
-              <select
-                value={selectedNationality}
-                onChange={(event) => onSelectNationality(event.target.value)}
-                disabled={isNationalityLocked}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <option value="ALL">Toutes</option>
-                {nationalityOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {getNationalityLabel(option)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Nationalite
+            </span>
+            <select
+              value={selectedNationality}
+              onChange={(event) => onSelectNationality(event.target.value)}
+              disabled={isNationalityLocked}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="ALL">Toutes</option>
+              {nationalityOptions.map((option) => (
+                <option key={option} value={option}>
+                  {getNationalityLabel(option)}
+                </option>
+              ))}
+            </select>
+          </label>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:col-span-7">
-            <label className="text-sm text-slate-300">
+          <label className="text-sm text-slate-300">
             <span className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
               <span>Championnat</span>
               {selectedLeagueBadgeUrl && (
@@ -207,9 +204,9 @@ export function DraftAvailablePlayers({
                 </option>
               ))}
             </select>
-            </label>
+          </label>
 
-            <label className="text-sm text-slate-300">
+          <label className="text-sm text-slate-300">
             <span className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
               <span>Club</span>
               {selectedClubBadgeUrl && (
@@ -236,13 +233,11 @@ export function DraftAvailablePlayers({
                 </option>
               ))}
             </select>
-            </label>
-          </div>
+          </label>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-14">
-          <div className="grid gap-3 md:grid-cols-2 xl:col-span-5">
-            <label className="text-sm text-slate-300">
+        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+          <label className="text-sm text-slate-300">
             <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
               Age min
             </span>
@@ -254,9 +249,9 @@ export function DraftAvailablePlayers({
               placeholder="Ex. 21"
               className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
             />
-            </label>
+          </label>
 
-            <label className="text-sm text-slate-300">
+          <label className="text-sm text-slate-300">
             <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
               Age max
             </span>
@@ -268,63 +263,62 @@ export function DraftAvailablePlayers({
               placeholder="Ex. 30"
               className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
             />
-            </label>
-          </div>
+          </label>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:col-span-5">
-            <label className="text-sm text-slate-300">
-              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+          <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
               Valeur min (M)
-              </span>
-              <input
-                type="number"
-                min={0}
+            </span>
+            <input
+              type="number"
+              min={0}
               value={minValue}
               onChange={(event) => onMinValueChange(event.target.value)}
               placeholder="Ex. 10"
               className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
             />
-            </label>
+          </label>
 
-            <label className="text-sm text-slate-300">
-              <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+          <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
               Valeur max (M)
-              </span>
-              <input
-                type="number"
-                min={0}
+            </span>
+            <input
+              type="number"
+              min={0}
               value={maxValue}
               onChange={(event) => onMaxValueChange(event.target.value)}
               placeholder="Ex. 50"
               className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
             />
-            </label>
-          </div>
+          </label>
+        </div>
 
-          <label className="text-sm text-slate-300 xl:col-span-4">
-          <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
-            Tri
-          </span>
-          <select
-            value={sortOption}
-            onChange={(event) =>
-              onSelectSort(
-                event.target.value as
-                  | 'rating-desc'
-                  | 'value-desc'
-                  | 'value-asc'
-                  | 'name-asc'
-                  | 'name-desc',
-              )
-            }
-            className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
-          >
-            <option value="rating-desc">Note generale</option>
-            <option value="value-desc">Valeur decroissante</option>
-            <option value="value-asc">Valeur croissante</option>
-            <option value="name-asc">Alphabetique A-Z</option>
-            <option value="name-desc">Alphabetique Z-A</option>
-          </select>
+        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+          <label className="text-sm text-slate-300">
+            <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">
+              Tri
+            </span>
+            <select
+              value={sortOption}
+              onChange={(event) =>
+                onSelectSort(
+                  event.target.value as
+                    | 'rating-desc'
+                    | 'value-desc'
+                    | 'value-asc'
+                    | 'name-asc'
+                    | 'name-desc',
+                )
+              }
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
+            >
+              <option value="rating-desc">Note generale</option>
+              <option value="value-desc">Valeur decroissante</option>
+              <option value="value-asc">Valeur croissante</option>
+              <option value="name-asc">Alphabetique A-Z</option>
+              <option value="name-desc">Alphabetique Z-A</option>
+            </select>
           </label>
         </div>
       </div>
