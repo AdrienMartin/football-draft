@@ -279,9 +279,18 @@ function getRoleWeightMultiplier(position: Player['position']) {
 
 function getWeightedPlayers(players: Player[], getWeight: (player: Player) => number) {
   return players
-    .map((player) => ({
-      name: player.name,
-      weight: Math.max(0.1, getWeight(player)),
+    .map((player) => {
+      const weight = getWeight(player);
+
+      return {
+        name: player.name,
+        weight,
+      };
+    })
+    .filter((entry) => entry.weight > 0)
+    .map((entry) => ({
+      ...entry,
+      weight: Math.max(0.1, entry.weight),
     }))
     .sort((left, right) => right.weight - left.weight);
 }
@@ -319,11 +328,19 @@ function getFallbackAttacker(team: TeamContext, excluded?: string) {
     .filter((player) => getPlayerRole(player.position) !== 'GK' && player.name !== excluded)
     .sort((left, right) => right.rating - left.rating);
 
-  return fallbackPlayers[0]?.name ?? team.players.find((player) => player.name !== excluded)?.name;
+  return fallbackPlayers[0]?.name;
 }
 
 function pickReliablePlayerName(team: TeamContext, pool: WeightedName[], excluded?: string) {
   return pickWeightedName(pool, excluded) ?? getFallbackAttacker(team, excluded);
+}
+
+function normalizeAssister(scorer?: string, assister?: string) {
+  if (!scorer || !assister || scorer === assister) {
+    return undefined;
+  }
+
+  return assister;
 }
 
 function buildLiveEvent(
@@ -1143,14 +1160,14 @@ function resolveSecondBallPhase(
           reboundTaker,
           state.minute + 2,
           reboundXg,
-          actionCreator,
+          normalizeAssister(reboundTaker, actionCreator),
           state.events,
           state.attackMode,
         ),
         state.score,
         {
           scorer: reboundTaker,
-          assister: actionCreator,
+          assister: normalizeAssister(reboundTaker, actionCreator),
           xg: reboundXg,
         },
       ),
@@ -1335,7 +1352,7 @@ function resolveBoxPhase(state: SequenceState) {
         : state.attackingTeam.centralCreators;
   const assister =
     Math.random() < 0.78
-      ? pickWeightedName(creators, shotTaker) ?? actionCreator
+      ? normalizeAssister(shotTaker, pickWeightedName(creators, shotTaker) ?? actionCreator)
       : undefined;
 
   if (state.attackingTeam.label === 'user') {
@@ -1485,7 +1502,32 @@ export function simulateMatch(userTeam: Player[], aiTeam: Player[]): MatchResult
     }
   });
 
-  const orderedEvents = [...events].sort((left, right) => left.minute - right.minute);
+  const orderedEvents = events
+    .map((event, index) => ({ event, index }))
+    .sort((left, right) => {
+      if (left.event.minute !== right.event.minute) {
+        return left.event.minute - right.event.minute;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ event }) => ({ ...event }));
+
+  let runningUserScore = 0;
+  let runningAiScore = 0;
+
+  orderedEvents.forEach((event) => {
+    if (event.type === 'goal') {
+      if (event.team === 'user') {
+        runningUserScore += 1;
+      } else {
+        runningAiScore += 1;
+      }
+    }
+
+    event.userScore = runningUserScore;
+    event.aiScore = runningAiScore;
+  });
   const { userStats, aiStats } = buildMatchStats(userContext.summary, aiContext.summary, orderedEvents);
 
   return {

@@ -367,18 +367,18 @@ export function MatchResultCard({
     <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
       <h2 className="text-center text-xl font-semibold text-white sm:text-2xl">{title}</h2>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr]">
+      <div className="mt-6 grid grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4">
         <div
           className={`rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-center transition ${scorePulse ? 'scale-[1.03]' : ''}`}
         >
           <p className="text-sm text-slate-400">Ton équipe</p>
           <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">{liveScore.user}</p>
-          <div className="mt-2 min-h-8 text-sm text-slate-300">
+          <div className="mt-2 min-h-8 text-xs text-slate-300 sm:text-sm">
             {scorers.user.length > 0 ? <p>{scorers.user.join(', ')}</p> : null}
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4 md:min-w-24">
+        <div className="flex min-w-[76px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/40 px-3 py-4 sm:min-w-24 sm:px-4">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
             {!hasStarted ? 'Départ' : isHalfTime ? 'Pause' : 'Chrono'}
           </p>
@@ -392,19 +392,23 @@ export function MatchResultCard({
         >
           <p className="text-sm text-slate-400">{opponentTextParts.cardLabel}</p>
           <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">{liveScore.ai}</p>
-          <div className="mt-2 min-h-8 text-sm text-slate-300">
+          <div className="mt-2 min-h-8 text-xs text-slate-300 sm:text-sm">
             {scorers.ai.length > 0 ? <p>{scorers.ai.join(', ')}</p> : null}
           </div>
         </div>
       </div>
 
-      <MatchStatsTable
-        result={result}
-        visibleEvents={visibleEvents}
-        opponentLabel={opponentTextParts.cardLabel}
-      />
+      <div className={isFinished ? 'block' : 'hidden sm:block'}>
+        <MatchStatsTable
+          result={result}
+          visibleEvents={visibleEvents}
+          opponentLabel={opponentTextParts.cardLabel}
+        />
+      </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div
+        className={`mt-6 gap-4 ${isFinished ? 'grid lg:grid-cols-2' : 'hidden sm:grid lg:grid-cols-2'}`}
+      >
         <TeamPitch title="Ton équipe" players={userTeam} side="left" compact />
         <TeamPitch title={opponentTextParts.cardLabel} players={aiTeam} side="right" compact />
       </div>

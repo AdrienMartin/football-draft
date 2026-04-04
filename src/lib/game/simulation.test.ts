@@ -314,6 +314,32 @@ describe('simulateMatch balancing', () => {
     }
   });
 
+  it('keeps the event scoreline monotonic throughout the match log', () => {
+    const iterations = 40;
+
+    for (let index = 0; index < iterations; index += 1) {
+      const result = simulateMatch(balancedUserTeam, balancedAiTeam);
+      let previousUserScore = 0;
+      let previousAiScore = 0;
+
+      result.events.forEach((event) => {
+        expect(event.userScore).toBeGreaterThanOrEqual(previousUserScore);
+        expect(event.aiScore).toBeGreaterThanOrEqual(previousAiScore);
+        expect(event.userScore + event.aiScore).toBeLessThanOrEqual(
+          result.userScore + result.aiScore,
+        );
+
+        if (event.type !== 'goal') {
+          expect(event.userScore).toBe(previousUserScore);
+          expect(event.aiScore).toBe(previousAiScore);
+        }
+
+        previousUserScore = event.userScore;
+        previousAiScore = event.aiScore;
+      });
+    }
+  });
+
   it('reflects wide and central profiles in action selection over many matches', () => {
     const iterations = 70;
     let wideCrossEvents = 0;
