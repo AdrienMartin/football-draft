@@ -47,3 +47,4 @@ desktop.ini
 /.kaggle/
 /downloaded_files/
 /tmp/
+.env.local
